@@ -162,6 +162,8 @@ export default function Sidebar({ mobileOpen = false, onClose }: Props) {
             </div>
             <nav className="space-y-2" onClick={onClose}>
               {item("Dashboard", "/dashboard", Home)}
+              {item("Smart Pricing", "/smart-pricing", Calculator)}
+              {item("Kasir POS", "/kasir", ShoppingCart)}
               {item("Financial Reporting", "/financial", BarChart2)}
               {item("Chart of Accounts", "/chart-of-accounts", Calculator)}
               {item("Internal Management", "/internal-management", Factory)}
@@ -170,7 +172,6 @@ export default function Sidebar({ mobileOpen = false, onClose }: Props) {
               {item("Permodalan", "/permodalan", ShieldCheck)}
               {item("Subscription", "/subscription", CircleDollarSign)}
               {item("Cari Distributor", "/cari-distributor", Map)}
-              {item("Smart Pricing", "/smart-pricing", Calculator)}
             </nav>
           </div>
         </div>

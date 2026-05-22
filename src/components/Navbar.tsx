@@ -26,8 +26,8 @@ export default function Navbar({ onMobileMenu }: Props) {
 
         {/* Page title + Search bar */}
         <div className="flex-1 flex items-center justify-start gap-4 min-w-0">
-          <div className="min-w-0">
-            <h1 className="px-8 text-base sm:text-lg font-extrabold text-primary truncate max-w-[45vw]">
+          <div className="min-w-0 shrink-0 max-w-[35vw] sm:max-w-[45vw]">
+            <h1 className="px-2 sm:px-8 text-[11px] sm:text-base md:text-lg font-extrabold text-primary leading-tight sm:truncate">
               {pageTitle}
             </h1>
           </div>

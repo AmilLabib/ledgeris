@@ -88,7 +88,7 @@ function seedForSector(sector: BusinessSector): InventoryItem[] {
     const costs = [
       25000, 20000, 25000, 15000, 35000, 20000, 12000, 22000, 25000, 8000,
     ];
-    return names.map((n, i) =>
+    const base = names.map((n, i) =>
       make(
         n,
         "Kuliner",
@@ -98,6 +98,58 @@ function seedForSector(sector: BusinessSector): InventoryItem[] {
         i + 1,
       ),
     );
+
+    // Add requested mock items: 5x Lele, 5x Nila, 5x Ayam for kuliner sector
+    const extraNames: string[] = [
+      // Lele
+      "Lele Goreng 1 porsi",
+      "Lele Bakar 1 porsi",
+      "Lele Sambal 1 porsi",
+      "Ikan Lele Creamy 1 porsi",
+      "Lele Fillet 1 pack",
+      // Nila
+      "Nila Goreng 1 porsi",
+      "Nila Bakar 1 porsi",
+      "Nila Sambal 1 porsi",
+      "Nila Fillet 1 pack",
+      "Nila Pepes 1 porsi",
+      // Ayam
+      "Ayam Goreng 1 porsi",
+      "Ayam Bakar 1 porsi",
+      "Ayam Rica 1 porsi",
+      "Ayam Kremes 1 porsi",
+      "Ayam Fillet 1 pack",
+    ];
+    const extraCosts: number[] = [
+      18000,
+      20000,
+      20000,
+      22000,
+      40000, // lele
+      22000,
+      24000,
+      24000,
+      45000,
+      23000, // nila
+      18000,
+      20000,
+      20000,
+      19000,
+      42000, // ayam
+    ];
+
+    const extras = extraNames.map((n, i) =>
+      make(
+        n,
+        "Kuliner",
+        Math.max(10, 80 - i * 2),
+        extraCosts[i] || 20000,
+        "kuliner",
+        (i % 10) + 1,
+      ),
+    );
+
+    return [...base, ...extras];
   }
 
   if (sector === "agribisnis") {
@@ -116,7 +168,47 @@ function seedForSector(sector: BusinessSector): InventoryItem[] {
     const costs = [
       120000, 60000, 45000, 80000, 450000, 15000, 420000, 1200000, 8000,
     ];
-    return names.map((n, i) =>
+
+    // Additional mock items requested: 5x Lele, 5x Nila, 5x Ayam
+    const extraNames: string[] = [
+      // Lele variants
+      "Lele Lokal 250g",
+      "Lele Jumbo 500g",
+      "Lele Pembesaran (seedling)",
+      "Lele Fillet 1 pack",
+      "Lele 1kg Pack",
+      // Nila variants
+      "Nila Lokal 250g",
+      "Nila Jumbo 500g",
+      "Nila Pembesaran (seedling)",
+      "Nila Fillet 1 pack",
+      "Nila 1kg Pack",
+      // Ayam variants
+      "Ayam Broiler 1 ekor",
+      "Ayam Petelur 1 ekor",
+      "Ayam Kampung 1 ekor",
+      "Ayam Organik 1 ekor",
+      "Ayam Potong 1 ekor",
+    ];
+    const extraCosts: number[] = [
+      15000,
+      26000,
+      8000,
+      45000,
+      60000, // lele
+      18000,
+      30000,
+      9000,
+      48000,
+      65000, // nila
+      40000,
+      45000,
+      55000,
+      90000,
+      42000, // ayam
+    ];
+
+    const base = names.map((n, i) =>
       make(
         n,
         "Agribisnis",
@@ -126,6 +218,20 @@ function seedForSector(sector: BusinessSector): InventoryItem[] {
         i + 1,
       ),
     );
+
+    // Map extra names to peternakan images (wrap index if necessary)
+    const extras = extraNames.map((n, i) =>
+      make(
+        n,
+        "Perikanan / Peternakan",
+        Math.max(10, 100 - i * 3),
+        extraCosts[i] || 15000,
+        "peternakan",
+        (i % 10) + 1,
+      ),
+    );
+
+    return [...base, ...extras];
   }
 
   if (sector === "fashion") {

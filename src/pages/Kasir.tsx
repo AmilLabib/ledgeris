@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Plus, Minus, Trash2, ShoppingCart } from "lucide-react";
+import { Search, Plus, Minus, Trash2, ShoppingCart, X } from "lucide-react";
 import { useInventory } from "../context/InventoryContext";
 import { useJournal } from "../context/JournalContext";
 
@@ -106,6 +106,7 @@ export default function Kasir() {
   };
 
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const { addSaleFromCart } = useJournal();
 
   // Use the shipped QR image from public/ (qris.jpeg)
@@ -189,12 +190,12 @@ export default function Kasir() {
 
   return (
     <>
-      <div className="flex h-[calc(100vh-theme(spacing.16))] bg-gray-50 overflow-hidden -m-4">
+      <div className="flex flex-col md:flex-row h-[calc(100vh-theme(spacing.16))] bg-gray-50 overflow-hidden -m-4">
         {/* Left Area: Products */}
         <div className="flex-1 flex flex-col h-full overflow-hidden">
           {/* Top Bar: Search & Categories */}
-          <div className="bg-white p-4 border-b flex flex-col gap-4 shadow-sm z-10">
-            <div className="flex items-center gap-4">
+          <div className="bg-white p-4 border-b flex flex-col sm:flex-row sm:items-center gap-4 shadow-sm z-10">
+            <div className="flex items-center gap-4 w-full">
               <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
                 <ShoppingCart className="w-6 h-6 text-primary" />
                 Kasir / POS
@@ -270,8 +271,8 @@ export default function Kasir() {
           </div>
         </div>
 
-        {/* Right Area: Order Summary / Cart */}
-        <div className="w-96 bg-white border-l shadow-xl flex flex-col h-full z-20">
+        {/* Right Area: Order Summary / Cart (desktop) */}
+        <div className="hidden md:flex w-96 bg-white md:border-l border-t md:border-t-0 shadow-xl flex-col h-full z-20">
           <div className="p-4 border-b flex items-center justify-between bg-gray-50/50">
             <h2 className="font-bold text-lg text-gray-800 flex items-center gap-2">
               Detail Pesanan
@@ -368,6 +369,145 @@ export default function Kasir() {
         </div>
       </div>
 
+      {/* Mobile cart control: show pill summary when items exist, otherwise small floating button */}
+      {cart.length > 0 ? (
+        <button
+          aria-label="Buka detail pesanan"
+          onClick={() => setIsCartOpen(true)}
+          className="md:hidden fixed left-4 right-4 bottom-6 z-50 bg-primary text-white rounded-full px-4 py-3 flex items-center justify-between shadow-2xl"
+        >
+          <div className="flex flex-col text-left">
+            <span className="font-semibold text-lg">
+              {cart.reduce((s, it) => s + it.quantity, 0)} item
+            </span>
+            <span className="text-sm opacity-90">Ringkasan pesanan</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-lg font-bold">{formatRupiah(total)}</div>
+            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+              <ShoppingCart className="w-5 h-5" />
+            </div>
+          </div>
+        </button>
+      ) : (
+        <button
+          aria-label="Buka detail pesanan"
+          onClick={() => setIsCartOpen(true)}
+          className="md:hidden fixed bottom-6 right-4 z-50 bg-primary text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl ring-2 ring-primary/20"
+        >
+          <div className="relative">
+            <ShoppingCart className="w-6 h-6" />
+          </div>
+        </button>
+      )}
+
+      {/* Mobile slide-over cart */}
+      {isCartOpen && (
+        <div className="md:hidden fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setIsCartOpen(false)}
+          />
+          <div className="absolute right-0 top-0 h-full w-full max-w-xs bg-white shadow-2xl p-4 flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold">Detail Pesanan</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => clearCart()}
+                  className="p-2 text-gray-400 hover:text-red-500 rounded-md"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setIsCartOpen(false)}
+                  className="p-2 rounded-md"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto flex flex-col gap-3 mb-3">
+              {cart.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-gray-400 gap-3">
+                  <ShoppingCart className="w-16 h-16 text-gray-200" />
+                  <p className="text-sm">Keranjang masih kosong</p>
+                </div>
+              ) : (
+                cart.map((item) => (
+                  <div key={item.id} className="flex gap-3 bg-white">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-16 h-16 rounded-lg object-cover border"
+                    />
+                    <div className="flex-1 flex flex-col justify-between">
+                      <div>
+                        <h4 className="font-medium text-gray-800 text-sm leading-tight">
+                          {item.name}
+                        </h4>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {formatRupiah(item.price)}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center gap-3 bg-gray-50 rounded-lg border p-0.5">
+                          <button
+                            onClick={() => updateQuantity(item.id, -1)}
+                            className="p-1 hover:bg-white rounded-md text-gray-600 shadow-sm"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="text-sm font-semibold w-4 text-center">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(item.id, 1)}
+                            className="p-1 hover:bg-white rounded-md text-gray-600 shadow-sm"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <p className="font-semibold text-gray-800 text-sm">
+                          {formatRupiah(item.price * item.quantity)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="border-t pt-3">
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>Subtotal</span>
+                <span>{formatRupiah(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>PPN (11%)</span>
+                <span>{formatRupiah(tax)}</span>
+              </div>
+              <div className="pt-2 border-t border-dashed flex justify-between items-end">
+                <span className="font-semibold text-gray-800">Total</span>
+                <span className="text-xl font-bold text-primary">
+                  {formatRupiah(total)}
+                </span>
+              </div>
+              <button
+                disabled={cart.length === 0}
+                onClick={() => {
+                  setIsPaymentOpen(true);
+                  setIsCartOpen(false);
+                }}
+                className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-xl mt-3 transition-colors disabled:opacity-50"
+              >
+                Bayar Sekarang
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isPaymentOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
@@ -393,7 +533,7 @@ export default function Kasir() {
 
             <div className="flex gap-3">
               <button
-                className="flex-1 px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold"
+                className="flex-1 px-4 py-2 rounded-lg bg-primary text-white font-semibold"
                 onClick={() => {
                   // finalize payment: record sale in journals, then clear cart
                   try {
@@ -402,7 +542,7 @@ export default function Kasir() {
                     });
                   } catch (e) {
                     // ignore errors but log
-                     
+
                     console.error(e);
                   }
                   clearCart();
