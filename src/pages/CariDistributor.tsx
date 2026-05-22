@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { ComposableMap, Geographies, Geography } from "react-simple-maps";
+import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
 import { usePageTitle } from "../hooks/usePageTitle";
+import { Search, MapPin, Navigation, Sparkles, Heart, MessageCircle, Send, Bookmark } from "lucide-react";
 
+// --- EXISTING MAP DATA ---
 interface TooltipData {
   x: number;
   y: number;
@@ -13,7 +15,6 @@ interface TooltipData {
   };
 }
 
-// Data Dummy Distributor
 const distributorsByProvince: Record<string, string[]> = {
   Aceh: ["PT. Distribusi Sabang", "CV. Aceh Maju"],
   "Sumatera Utara": ["PT. Lintas Medan", "CV. Logistik Danau Toba"],
@@ -89,14 +90,230 @@ const getKeteranganTambahan = (provinsi: string) => {
 const geoUrl =
   "https://raw.githubusercontent.com/superpikar/indonesia-geojson/master/indonesia-province-simple.json";
 
+// --- NEW MOCK AI SEARCH DATA ---
+type DistributorType = "Resto" | "KDMP" | "Toko Mebel" | "Mall";
+
+interface SearchResult {
+  id: number;
+  name: string;
+  type: DistributorType;
+  location: string;
+  province: string;
+  city: string;
+  lat: number;
+  lng: number;
+  socialMedia: string;
+  avatarPlaceholder: string;
+  imagePlaceholder: string;
+  caption: string;
+  likes: string;
+}
+
+const MOCK_DISTRIBUTORS: SearchResult[] = [
+  // KOTA BOGOR
+  {
+    id: 1,
+    name: "Resto Pecel Lele Si Doel",
+    type: "Resto",
+    location: "Kota Bogor, Jawa Barat",
+    province: "Jawa Barat",
+    city: "Kota Bogor",
+    lat: -6.595038,
+    lng: 106.816635,
+    socialMedia: "pecellelesidoel_bogor",
+    avatarPlaceholder: "bg-orange-500",
+    imagePlaceholder: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&q=80",
+    caption: "Porsi jumbo siap disajikan! Ikan lele dan ayam segar setiap hari dari supplier terbaik. 🐟🔥 #PecelLele #KulinerBogor #InfoBogor",
+    likes: "1,245",
+  },
+  {
+    id: 2,
+    name: "KDMP Pasar Anyar Bogor",
+    type: "KDMP",
+    location: "Kota Bogor, Jawa Barat",
+    province: "Jawa Barat",
+    city: "Kota Bogor",
+    lat: -6.584347,
+    lng: 106.797274,
+    socialMedia: "pasaranyar_bogorraya",
+    avatarPlaceholder: "bg-emerald-600",
+    imagePlaceholder: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&q=80",
+    caption: "Stok sembako sayur mayur melimpah pagi ini bun! Siap diborong tengkulak. 🥬🥕🥔 #PasarAnyar #Bogor",
+    likes: "830",
+  },
+  {
+    id: 3,
+    name: "Toko Mebel Kayu Jati Indah",
+    type: "Toko Mebel",
+    location: "Kota Bogor, Jawa Barat",
+    province: "Jawa Barat",
+    city: "Kota Bogor",
+    lat: -6.6021,
+    lng: 106.8012,
+    socialMedia: "mebelindah_bogor",
+    avatarPlaceholder: "bg-amber-700",
+    imagePlaceholder: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80",
+    caption: "Set meja makan minimalis kayu jati asli Jepara. Promo akhir bulan! #MebelBogor #InteriorRumah #KayuJati",
+    likes: "2,109",
+  },
+  
+  // KOTA SURAKARTA
+  {
+    id: 4,
+    name: "Warung Makan Nila Bakar Bengawan",
+    type: "Resto",
+    location: "Kota Surakarta, Jawa Tengah",
+    province: "Jawa Tengah",
+    city: "Kota Surakarta",
+    lat: -7.556111,
+    lng: 110.831667,
+    socialMedia: "nilabengawan_solo",
+    avatarPlaceholder: "bg-red-500",
+    imagePlaceholder: "https://images.unsplash.com/photo-1598514982205-f36b96d1e8d4?w=400&q=80",
+    caption: "Nila bakar madu pedas manis siap menemani makan siang sedulur Solo. Nikmatnya sampai ke tulang! 🤤🔥 #KulinerSolo #Surakarta",
+    likes: "3,450",
+  },
+  {
+    id: 5,
+    name: "KDMP Pasar Gede Solo",
+    type: "KDMP",
+    location: "Kota Surakarta, Jawa Tengah",
+    province: "Jawa Tengah",
+    city: "Kota Surakarta",
+    lat: -7.5714,
+    lng: 110.8291,
+    socialMedia: "pasargede_official",
+    avatarPlaceholder: "bg-blue-600",
+    imagePlaceholder: "https://images.unsplash.com/photo-1533900298318-6b8da08a523e?w=400&q=80",
+    caption: "Suasana pagi di Pasar Gede Solo. Pusat grosir bumbu rempah dan hasil bumi terlengkap. #PasarGede #SoloInfo",
+    likes: "5,612",
+  },
+  {
+    id: 6,
+    name: "Solo Furniture Mall",
+    type: "Mall",
+    location: "Kota Surakarta, Jawa Tengah",
+    province: "Jawa Tengah",
+    city: "Kota Surakarta",
+    lat: -7.5750,
+    lng: 110.8234,
+    socialMedia: "solofurnituremall",
+    avatarPlaceholder: "bg-stone-800",
+    imagePlaceholder: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&q=80",
+    caption: "Koleksi sofa modern minimalis sudah tiba. Bikin ruang tamu makin aesthetic. Mampir ke showroom kami ya! 🛋️✨ #FurnitureSolo",
+    likes: "4,200",
+  },
+
+  // KABUPATEN BOJONEGORO
+  {
+    id: 7,
+    name: "Ayam Geprek Sambal Korek Bojonegoro",
+    type: "Resto",
+    location: "Kabupaten Bojonegoro, Jawa Timur",
+    province: "Jawa Timur",
+    city: "Kabupaten Bojonegoro",
+    lat: -7.150975,
+    lng: 111.881729,
+    socialMedia: "ayamgeprekkorek_bjn",
+    avatarPlaceholder: "bg-red-600",
+    imagePlaceholder: "https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=400&q=80",
+    caption: "Awas pedasnya nendang! Sambal korek fresh ulek dadakan. Promo paket mahasiswa setiap jumat. 🌶️🍗 #KulinerBojonegoro",
+    likes: "1,890",
+  },
+  {
+    id: 8,
+    name: "KDMP Pasar Kota Bojonegoro",
+    type: "KDMP",
+    location: "Kabupaten Bojonegoro, Jawa Timur",
+    province: "Jawa Timur",
+    city: "Kabupaten Bojonegoro",
+    lat: -7.1556,
+    lng: 111.8845,
+    socialMedia: "pasarkota_bojonegoro",
+    avatarPlaceholder: "bg-teal-700",
+    imagePlaceholder: "https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&q=80",
+    caption: "Harga cabai dan bawang mulai stabil lur. Siap supply untuk warung-warung di Bojonegoro. 🌶️🧅",
+    likes: "956",
+  },
+  {
+    id: 9,
+    name: "Toko Mebel Jati Kusuma",
+    type: "Toko Mebel",
+    location: "Kabupaten Bojonegoro, Jawa Timur",
+    province: "Jawa Timur",
+    city: "Kabupaten Bojonegoro",
+    lat: -7.1620,
+    lng: 111.8900,
+    socialMedia: "jatikusuma_bjn",
+    avatarPlaceholder: "bg-yellow-800",
+    imagePlaceholder: "https://images.unsplash.com/photo-1538688525198-9b88f6f53126?w=400&q=80",
+    caption: "Lemari pakaian 3 pintu ukiran klasik asli Bojonegoro. Kualitas terjamin awet sampai anak cucu. #MebelBojonegoro",
+    likes: "1,455",
+  }
+];
+
+const LOCATIONS: Record<string, string[]> = {
+  "Jawa Barat": ["Kota Bogor"],
+  "Jawa Tengah": ["Kota Surakarta"],
+  "Jawa Timur": ["Kabupaten Bojonegoro"],
+};
+
 const CariDistributor = () => {
   usePageTitle("Cari Distributor");
+  
+  // State for AI Search
+  const [province, setProvince] = useState<string>("");
+  const [city, setCity] = useState<string>("");
+  const [keyword, setKeyword] = useState<string>("");
+  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [activeMarkerId, setActiveMarkerId] = useState<number | null>(null);
+
+  // State for Map Tooltip (Provinces)
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
 
-  const handleClick = (
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSearching(true);
+    setActiveMarkerId(null);
+
+    setTimeout(() => {
+      let filtered = MOCK_DISTRIBUTORS;
+
+      // Filter by location
+      if (province) {
+        filtered = filtered.filter(d => d.province === province);
+      }
+      if (city) {
+        filtered = filtered.filter(d => d.city === city);
+      }
+
+      // Mock AI Intent Logic
+      const kw = keyword.toLowerCase();
+      const isFood = kw.includes("lele") || kw.includes("nila") || kw.includes("ayam");
+      const isFurniture = kw.includes("kursi") || kw.includes("meja");
+
+      if (isFood) {
+        filtered = filtered.filter(d => d.type === "Resto" || d.type === "KDMP");
+      } else if (isFurniture) {
+        filtered = filtered.filter(d => d.type === "Toko Mebel" || d.type === "Mall");
+      } else if (kw) {
+        // If keyword doesn't match AI rules, do a basic text search
+        filtered = filtered.filter(d => d.name.toLowerCase().includes(kw));
+      }
+
+      setSearchResults(filtered);
+      setIsSearching(false);
+    }, 600); // mock network delay
+  };
+
+  const handleMapClick = (
     geo: any,
     e: React.MouseEvent<SVGPathElement, MouseEvent>,
   ) => {
+    // If clicking on province while viewing search results, just dismiss markers tooltip
+    setActiveMarkerId(null);
+
     let rawName =
       geo.properties.Propinsi ||
       geo.properties.name ||
@@ -125,24 +342,36 @@ const CariDistributor = () => {
     });
   };
 
-  const closeTooltip = () => setTooltip(null);
+  const closeTooltips = () => {
+    setTooltip(null);
+  };
 
   return (
     <div
       className="min-h-screen bg-transparent relative"
-      onClick={closeTooltip}
+      onClick={closeTooltips}
     >
-      <div className="max-w-[80rem] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6">
-        <div className="bg-gradient-to-b from-[#f2fcf9] from-2% to-white rounded-2xl p-6 shadow-md border border-gray-100 card-hover min-w-0">
-          <h3 className="font-semibold text-xl text-gray-800 mb-2">
-            Peta Jaringan Distributor
-          </h3>
-          <p className="text-sm text-gray-500 mb-6">
-            Klik pada area provinsi di peta untuk melihat popup daftar distributor dan
-            infonya.
-          </p>
+      <div className="max-w-[80rem] mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-6 space-y-6">
+        
+        {/* TOP SECTION: Interactive Map */}
+        <div className="bg-gradient-to-b from-[#f2fcf9] from-2% to-white rounded-2xl p-6 shadow-md border border-gray-100 min-w-0 relative">
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+            <div>
+              <h3 className="font-semibold text-xl text-gray-800">
+                Peta Interaktif Distributor Nasional
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Gunakan Pencarian Cerdas di bawah peta untuk memunculkan titik spesifik. Klik provinsi untuk info jaringan.
+              </p>
+            </div>
+            {searchResults && searchResults.length > 0 && (
+              <span className="px-4 py-2 bg-primary/10 text-primary text-sm font-bold rounded-full animate-pulse border border-primary/20 whitespace-nowrap">
+                {searchResults.length} Titik Ditemukan
+              </span>
+            )}
+          </div>
 
-          <div className="h-[32rem] w-full bg-[#f0f8ff] rounded-xl overflow-hidden relative cursor-pointer flex items-center justify-center border border-blue-100">
+          <div className="h-[28rem] sm:h-[32rem] w-full bg-[#f0f8ff] rounded-xl overflow-hidden relative cursor-pointer flex items-center justify-center border border-blue-100 shadow-inner">
             <ComposableMap
               projection="geoMercator"
               projectionConfig={{
@@ -177,7 +406,7 @@ const CariDistributor = () => {
                         strokeWidth={0.8}
                         onClick={(e: any) => {
                           e.stopPropagation();
-                          handleClick(geo, e);
+                          handleMapClick(geo, e);
                         }}
                         style={{
                           default: { outline: "none" },
@@ -189,11 +418,189 @@ const CariDistributor = () => {
                   })
                 }
               </Geographies>
+
+              {/* Render Search Result Markers on Map */}
+              {searchResults && searchResults.map((result) => {
+                const isHovered = activeMarkerId === result.id;
+                return (
+                  <Marker 
+                    key={result.id} 
+                    coordinates={[result.lng, result.lat]}
+                    onMouseEnter={() => setActiveMarkerId(result.id)}
+                    onMouseLeave={() => setActiveMarkerId(null)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveMarkerId(result.id);
+                    }}
+                  >
+                    <g transform="translate(-12, -24)">
+                      <path
+                        fill={isHovered ? "#ef4444" : "#f59e0b"}
+                        d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"
+                      />
+                      <circle cx="12" cy="10" r="4" fill="white" />
+                    </g>
+                    {isHovered && (
+                      <text
+                        textAnchor="middle"
+                        y={-32}
+                        style={{ fontFamily: "system-ui", fill: "#1f2937", fontSize: "14px", fontWeight: "bold", filter: "drop-shadow(0px 0px 4px rgba(255,255,255,0.8))" }}
+                      >
+                        {result.name}
+                      </text>
+                    )}
+                  </Marker>
+                );
+              })}
             </ComposableMap>
           </div>
         </div>
+
+        {/* AI Search Section */}
+        <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 min-w-0" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="w-5 h-5 text-primary" />
+            <h3 className="font-semibold text-xl text-gray-800">
+              Pencarian Cerdas (AI-Driven)
+            </h3>
+          </div>
+          <p className="text-sm text-gray-500 mb-6">
+            Ketik kebutuhan Anda dan AI akan memetakan target outlet terbaik di wilayah Anda. <br className="hidden sm:block" />
+            <span className="text-gray-400 text-xs">Simulasi: Ketik "lele" atau "meja" pada wilayah Bogor, Surakarta, atau Bojonegoro.</span>
+          </p>
+
+          <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="col-span-1">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Provinsi</label>
+              <select 
+                className="w-full border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm bg-white"
+                value={province}
+                onChange={(e) => {
+                  setProvince(e.target.value);
+                  setCity("");
+                }}
+              >
+                <option value="">Semua Provinsi</option>
+                {Object.keys(LOCATIONS).map(prov => (
+                  <option key={prov} value={prov}>{prov}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="col-span-1">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Kabupaten/Kota</label>
+              <select 
+                className="w-full border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm bg-white disabled:bg-gray-50 disabled:text-gray-400"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                disabled={!province}
+              >
+                <option value="">Semua Kota</option>
+                {province && LOCATIONS[province]?.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="col-span-1 md:col-span-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Kata Kunci (Kebutuhan)</label>
+              <div className="flex gap-2">
+                <input 
+                  type="text"
+                  placeholder="Contoh: lele, nila, ayam atau kursi, meja..."
+                  className="flex-1 border rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm bg-white"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                />
+                <button 
+                  type="submit"
+                  disabled={isSearching}
+                  className="bg-primary text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 flex items-center justify-center min-w-[100px] disabled:opacity-70 transition-colors"
+                >
+                  {isSearching ? <span className="animate-pulse">Mencari...</span> : <><Search className="w-4 h-4 mr-2" /> Cari</>}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        {/* Embedded Social Media Search Results */}
+        {searchResults && (
+          <div className="bg-transparent min-w-0" onClick={e => e.stopPropagation()}>
+            <h4 className="font-semibold text-gray-800 mb-6 flex items-center gap-2">
+              Temuan Outlet di Sosial Media 
+              <span className="bg-primary text-white text-xs px-2 py-0.5 rounded-full">{searchResults.length}</span>
+            </h4>
+            
+            {searchResults.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200 text-gray-500 text-sm shadow-sm">
+                Tidak ada distributor atau outlet yang memposting tentang <strong>"{keyword}"</strong> di area yang dipilih.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {searchResults.map((item) => (
+                  <div 
+                    key={item.id} 
+                    className={`bg-white border ${activeMarkerId === item.id ? 'border-primary ring-4 ring-primary/20' : 'border-gray-200'} rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 cursor-pointer`}
+                    onMouseEnter={() => setActiveMarkerId(item.id)}
+                    onMouseLeave={() => setActiveMarkerId(null)}
+                  >
+                    {/* IG-like Header */}
+                    <div className="p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-8 h-8 rounded-full ${item.avatarPlaceholder} flex items-center justify-center text-white font-bold text-xs shadow-inner`}>
+                          {item.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900 leading-none">{item.socialMedia}</p>
+                          <p className="text-[10px] text-gray-500 flex items-center gap-0.5 mt-0.5">
+                            <MapPin className="w-2.5 h-2.5" /> {item.city}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="bg-gray-100 text-gray-600 text-[10px] px-2 py-1 rounded-md font-medium tracking-wide">
+                        {item.type}
+                      </div>
+                    </div>
+
+                    {/* Image Area */}
+                    <div className="w-full aspect-square bg-gray-100 relative group overflow-hidden">
+                      <img src={item.imagePlaceholder} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                      
+                      {/* Floating Location Tag overlay */}
+                      <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-white text-[10px] px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Navigation className="w-3 h-3" />
+                        {`${item.lat.toFixed(4)}, ${item.lng.toFixed(4)}`}
+                      </div>
+                    </div>
+
+                    {/* Action Bar */}
+                    <div className="px-3 pt-3 pb-1 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <button className="text-gray-800 hover:text-red-500 transition-colors"><Heart className="w-5 h-5" /></button>
+                        <button className="text-gray-800 hover:text-gray-600 transition-colors"><MessageCircle className="w-5 h-5" /></button>
+                        <button className="text-gray-800 hover:text-gray-600 transition-colors"><Send className="w-5 h-5" /></button>
+                      </div>
+                      <button className="text-gray-800 hover:text-gray-600 transition-colors"><Bookmark className="w-5 h-5" /></button>
+                    </div>
+
+                    {/* Caption Area */}
+                    <div className="px-3 pb-4">
+                      <p className="text-xs font-semibold text-gray-900 mb-1">{item.likes} suka</p>
+                      <p className="text-xs text-gray-800 leading-relaxed">
+                        <span className="font-bold mr-1">{item.socialMedia}</span> 
+                        {item.caption}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
+      {/* Map Tooltip (For Provinces) */}
       {tooltip && (
         <div
           className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 p-4 w-72 pointer-events-none transform -translate-x-1/2 -translate-y-[110%]"

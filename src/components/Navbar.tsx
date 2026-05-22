@@ -63,20 +63,7 @@ export default function Navbar({ onMobileMenu }: Props) {
             <PlayCircle className="w-4 h-4" />
             <span className="hidden sm:inline">Demo mode</span>
           </button>
-          {/* Replay tour control - clears tour flag and reloads so user can re-run onboarding */}
-          <button
-            type="button"
-            onClick={() => {
-              try {
-                localStorage.removeItem("tour_shown_v1");
-              } catch {}
-              window.location.reload();
-            }}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-full border text-sm"
-            title="Replay tour"
-          >
-            Replay Tour
-          </button>
+
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100">
             <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
               AL

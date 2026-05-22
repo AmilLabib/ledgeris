@@ -15,36 +15,57 @@ const STEPS: Step[] = [
   {
     id: "sidebar",
     title: "Navigasi Utama",
-    body: "Gunakan sidebar untuk berpindah antar modul: Dashboard, Kasir, Financial, dsb.",
+    body: "Gunakan sidebar ini untuk berpindah antar modul aplikasi dengan cepat.",
     selector: ".sidebar-root",
     path: "/dashboard",
   },
   {
+    id: "dashboard-kpi",
+    title: "Ringkasan Performa",
+    body: "Di halaman Dashboard, Anda bisa melihat ringkasan Revenue, Net Income, dan aset bisnis Anda.",
+    selector: "section.grid",
+    path: "/dashboard",
+  },
+  {
     id: "kasir",
-    title: "Kasir / POS",
-    body: "Akses POS cepat untuk menangani transaksi pelanggan.",
+    title: "Menu Kasir / POS",
+    body: "Akses POS cepat untuk menangani transaksi penjualan dan melihat produk.",
     selector: "a[href='/kasir']",
     path: "/kasir",
   },
   {
+    id: "kasir-search",
+    title: "Cari Produk",
+    body: "Ketik nama produk di sini untuk mempercepat transaksi. Klik produk untuk menambahkannya ke keranjang.",
+    selector: "input[placeholder='Cari produk...']",
+    path: "/kasir",
+  },
+  {
     id: "financial",
-    title: "Financial",
-    body: "Lihat laporan keuangan, jurnal, dan posting transaksi di sini.",
+    title: "Menu Financial",
+    body: "Masuk ke menu Financial untuk melihat pencatatan jurnal dan laporan lengkap.",
     selector: "a[href='/financial']",
     path: "/financial",
   },
   {
-    id: "chart",
-    title: "Chart of Accounts",
-    body: "Manajemen daftar akun dan mapping untuk posting jurnal.",
-    selector: "a[href='/chart-of-accounts']",
-    path: "/chart-of-accounts",
+    id: "financial-tabs",
+    title: "Tab Laporan Keuangan",
+    body: "Gunakan tab ini untuk beralih antara Balance Sheet, Income Statement, dan Cash Flow.",
+    selector: "section.mt-2.bg-white.rounded-xl",
+    path: "/financial",
   },
   {
     id: "data-driven",
-    title: "Data Driven",
-    body: "Insight anomali dan rekomendasi berbasis data untuk bisnis kamu.",
+    title: "Menu Data Driven",
+    body: "Modul Data Driven menganalisis tren bisnis Anda dan mendeteksi anomali.",
     selector: "a[href='/data-driven']",
+    path: "/data-driven",
+  },
+  {
+    id: "data-driven-audit",
+    title: "Audit AI & Anomali",
+    body: "Di bagian ini, AI mendeteksi lonjakan biaya tak terduga dan memberikan saran optimalisasi.",
+    selector: "section.bg-white.rounded-2xl", // Matches standard cards in data driven
     path: "/data-driven",
   },
 ];
@@ -53,6 +74,7 @@ export default function TourGuide() {
   const [stepIndex, setStepIndex] = useState(0);
   const [visible, setVisible] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showFinished, setShowFinished] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const navigate = useNavigate();
 
@@ -73,13 +95,19 @@ export default function TourGuide() {
 
   const next = () => setStepIndex((s) => Math.min(s + 1, STEPS.length - 1));
   const prev = () => setStepIndex((s) => Math.max(s - 1, 0));
+  
+  const closeAll = () => {
+    setVisible(false);
+    setShowFinished(false);
+  };
+
   const finish = () => {
     if (dontShowAgain) {
       try {
         localStorage.setItem(TOUR_KEY, "1");
       } catch {}
     }
-    setVisible(false);
+    setShowFinished(true);
   };
   const skip = () => {
     if (dontShowAgain) {
@@ -92,7 +120,7 @@ export default function TourGuide() {
 
   // navigate and scroll target into view when step changes
   useEffect(() => {
-    if (!visible || showWelcome) return;
+    if (!visible || showWelcome || showFinished) return;
 
     if (step.path) {
       navigate(step.path);
@@ -107,9 +135,12 @@ export default function TourGuide() {
       if (el && typeof el.scrollIntoView === "function") {
         try {
           el.scrollIntoView({ behavior: "smooth", block: "center" });
+          // Force a state update to recalculate the modal floating position 
+          // after scroll is complete.
+          setStepIndex(s => s); 
         } catch {}
       }
-    }, 100);
+    }, 300);
 
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -128,7 +159,7 @@ export default function TourGuide() {
             </div>
           </div>
           <h3 className="text-xl font-bold mb-2 text-center">
-            Selamat Datang di Catalyst
+            Selamat Datang di Ledgeris
           </h3>
           <p className="text-gray-600 mb-4 text-center text-sm">
             Ikuti tutorial untuk mempelajari aplikasi ini.
@@ -175,11 +206,76 @@ export default function TourGuide() {
     );
   }
 
+  if (showFinished) {
+    return (
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center pointer-events-auto">
+        <div className="absolute inset-0 bg-black/40" />
+        <div className="bg-white rounded-2xl p-6 shadow-xl z-10 max-w-sm w-full mx-4 relative">
+          <div className="mb-4 flex justify-center">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+              <span className="text-3xl">🎉</span>
+            </div>
+          </div>
+          <h3 className="text-xl font-bold mb-2 text-center">
+            Tutorial Selesai
+          </h3>
+          <p className="text-gray-600 mb-6 text-center text-sm">
+            Silakan menggunakan aplikasi ini.
+          </p>
+
+          <button
+            onClick={closeAll}
+            className="w-full px-4 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 transition-colors"
+          >
+            Mulai Gunakan Aplikasi
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // compute highlight position if selector exists
   let rect: DOMRect | null = null;
   if (step.selector) {
     const el = document.querySelector(step.selector) as HTMLElement | null;
     if (el) rect = el.getBoundingClientRect();
+  }
+
+  // Calculate dynamic floating position for the modal
+  let modalStyle: React.CSSProperties = {
+    top: typeof window !== "undefined" ? window.innerHeight - 200 : 0,
+    left: typeof window !== "undefined" ? window.innerWidth / 2 : 0,
+    transform: "translate(-50%, 0)",
+  };
+
+  if (rect && typeof window !== "undefined") {
+    const modalHeight = 240; // rough estimate of modal height
+    const isTopHalf = rect.top < window.innerHeight / 2;
+    
+    let top = 0;
+    if (isTopHalf) {
+      // Place below the highlight
+      top = rect.bottom + 24;
+    } else {
+      // Place above the highlight
+      top = rect.top - modalHeight; 
+    }
+
+    // Clamp top so it doesn't overflow off the bottom or top of the screen
+    // This is especially needed for full-height elements like the sidebar
+    top = Math.max(top, 24);
+    top = Math.min(top, window.innerHeight - modalHeight - 24);
+
+    let left = rect.left + rect.width / 2;
+    // Clamp to prevent horizontal overflow (modal width is ~520px, so half is 260px)
+    left = Math.max(left, 280);
+    left = Math.min(left, window.innerWidth - 280);
+
+    modalStyle = {
+      top,
+      left,
+      transform: "translate(-50%, 0)",
+    };
   }
 
   return (
@@ -199,7 +295,10 @@ export default function TourGuide() {
           }}
         />
       )}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[min(92%,520px)] pointer-events-auto transition-transform duration-500 ease-in-out">
+      <div 
+        className="absolute w-[min(92%,520px)] pointer-events-auto transition-all duration-500 ease-in-out"
+        style={modalStyle}
+      >
         <div className="bg-white rounded-2xl p-6 shadow-xl border border-gray-100">
           <div className="flex items-start justify-between gap-4">
             <div>

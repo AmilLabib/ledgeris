@@ -74,7 +74,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: Props) {
                 collapsed ? "opacity-0 scale-95 w-0" : "opacity-100 scale-100"
               }`}
             >
-              Catalyst
+              Ledgeris
             </span>
           </button>
 

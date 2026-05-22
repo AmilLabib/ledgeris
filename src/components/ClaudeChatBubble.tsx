@@ -26,8 +26,7 @@ export default function ClaudeChatBubble() {
   const [chatHistory, setChatHistory] = useState([
     {
       role: "assistant",
-      content:
-        "Halo! Saya AI Assistant Anda (Claude). Ada yang bisa saya bantu hari ini?",
+      content: "Halo! Saya ledgeris bot. Ada yang bisa saya bantu hari ini?",
     },
   ]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -156,7 +155,7 @@ Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau memi
                 Bingung memakai aplikasi ini?
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Yuk, tanya AI Assistant!
+                Yuk, tanya ledgeris bot!
               </p>
             </div>
             <button
@@ -184,7 +183,7 @@ Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau memi
                 <MessageCircle size={18} />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">AI Assistant</h3>
+                <h3 className="font-semibold text-sm">ledgeris bot</h3>
                 <p className="text-xs text-white/80">Powered by Claude</p>
               </div>
             </div>

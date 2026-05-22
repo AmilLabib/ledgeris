@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { usePageTitle } from "../hooks/usePageTitle";
 import {
   ShieldCheck,
@@ -51,6 +51,36 @@ const loanProducts: LoanProduct[] = [
     maxTenorMonths: 24,
     processingDays: 5,
   },
+  {
+    id: "p4",
+    name: "Sinergi Modal - KUR",
+    partnerType: "Bank",
+    productType: "KUR",
+    logo: "/permodalan-4.png",
+    interestPa: 7.5,
+    maxTenorMonths: 36,
+    processingDays: 10,
+  },
+  {
+    id: "p5",
+    name: "DanaCepat - Invoice Financing",
+    partnerType: "Fintech",
+    productType: "Invoice Financing",
+    logo: "/permodalan-5.png",
+    interestPa: 13.0,
+    maxTenorMonths: 12,
+    processingDays: 2,
+  },
+  {
+    id: "p6",
+    name: "MitraKita - Modal Kerja",
+    partnerType: "Fintech",
+    productType: "Micro Working Capital",
+    logo: "/permodalan-6.png",
+    interestPa: 15.0,
+    maxTenorMonths: 18,
+    processingDays: 4,
+  },
 ];
 
 function Permodalan() {
@@ -64,6 +94,7 @@ function Permodalan() {
     | "Operasional"
     | "Invoice Financing";
   const [purpose, setPurpose] = useState<Purpose>("Modal Kerja");
+  const carouselRef = useRef<HTMLDivElement | null>(null);
 
   const filtered = useMemo(() => {
     // Simple matching logic: prefer products with tenor >= selected and interest tolerance
@@ -96,7 +127,7 @@ function Permodalan() {
     <div className="min-h-screen bg-transparent">
       <div className="max-w-[80rem] mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         <p className="text-sm text-gray-600 mb-6 mt-1">
-          CATALYST bukan pemberi pinjaman. Kami penghubung tepercaya ke mitra
+          LEDGERIS bukan pemberi pinjaman. Kami penghubung tepercaya ke mitra
           legal (Bank & P2P berizin OJK) dengan rekomendasi berbasis data untuk
           melindungi UMKM dari pinjaman ilegal.
         </p>
@@ -119,7 +150,7 @@ function Permodalan() {
                 Rp {preScreenLimit.toLocaleString("id-ID")}
               </p>
               <span className="mt-3 inline-flex items-center gap-2 px-2 py-1 rounded-full text-xs border border-blue-300 bg-white text-blue-700">
-                <ShieldCheck className="w-4 h-4" /> Data Verified by CATALYST
+                <ShieldCheck className="w-4 h-4" /> Data Verified by LEDGERIS
                 Audit System
               </span>
             </div>
@@ -181,58 +212,98 @@ function Permodalan() {
             </div>
           </section>
 
-          {/* Recommended Partners */}
+          {/* Recommended Partners (carousel) */}
           <section className="lg:col-span-12 bg-white rounded-2xl p-6 shadow-md">
             <div className="flex items-center gap-2 mb-3">
               <Briefcase className="w-5 h-5 text-blue-700" />
               <h2 className="text-xl font-semibold">Recommended Partners</h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {filtered.map((p) => (
-                <div
-                  key={p.id}
-                  className="bg-white rounded-2xl shadow-md overflow-hidden border"
-                >
-                  <div className="p-4 flex items-center gap-3 border-b">
-                    <img
-                      src={p.logo}
-                      alt={p.name}
-                      className="w-10 h-10 rounded"
-                    />
-                    <div className="min-w-0">
-                      <p className="font-semibold text-primary truncate">
-                        {p.name}
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        Terdaftar & Diawasi OJK
-                      </p>
+            {/* Carousel controls and viewport */}
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="previous"
+                onClick={() => {
+                  const el = carouselRef.current;
+                  if (!el) return;
+                  el.scrollBy({
+                    left: -Math.floor(el.clientWidth * 0.8),
+                    behavior: "smooth",
+                  });
+                }}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white shadow-md border hidden md:inline-flex"
+              >
+                ‹
+              </button>
+
+              <div
+                ref={carouselRef}
+                className="flex gap-6 overflow-x-auto scroll-smooth py-2 px-1 snap-x snap-mandatory touch-pan-x"
+                role="list"
+              >
+                {filtered.map((p) => (
+                  <div
+                    key={p.id}
+                    role="listitem"
+                    className="snap-start flex-shrink-0 w-[90%] sm:w-[70%] md:w-80 lg:w-96 bg-white rounded-2xl shadow-md overflow-hidden border"
+                  >
+                    <div className="p-4 flex items-center gap-3 border-b">
+                      <img
+                        src={p.logo}
+                        alt={p.name}
+                        className="w-10 h-10 rounded"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-semibold text-primary truncate">
+                          {p.name}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          Terdaftar & Diawasi OJK
+                        </p>
+                      </div>
+                    </div>
+                    <div className="p-4 grid grid-cols-2 gap-3 text-sm">
+                      <div className="inline-flex items-center gap-1">
+                        <Percent className="w-4 h-4 text-blue-700" /> Bunga:{" "}
+                        {p.interestPa}% p.a.
+                      </div>
+                      <div className="inline-flex items-center gap-1">
+                        <Calendar className="w-4 h-4 text-blue-700" /> Tenor
+                        Max: {p.maxTenorMonths} bln
+                      </div>
+                      <div className="inline-flex items-center gap-1 col-span-2">
+                        <Info className="w-4 h-4 text-blue-700" /> Proses:{" "}
+                        {p.processingDays} hari
+                      </div>
+                      <div className="inline-flex items-center gap-2 col-span-2 mt-2">
+                        <span className="px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200">
+                          Match Score: {(p as any).matchScore}% Cocok
+                        </span>
+                      </div>
+                      <button className="col-span-2 mt-2 px-3 py-2 rounded-md bg-primary text-white text-sm">
+                        Ajukan via Mitra
+                      </button>
                     </div>
                   </div>
-                  <div className="p-4 grid grid-cols-2 gap-3 text-sm">
-                    <div className="inline-flex items-center gap-1">
-                      <Percent className="w-4 h-4 text-blue-700" /> Bunga:{" "}
-                      {p.interestPa}% p.a.
-                    </div>
-                    <div className="inline-flex items-center gap-1">
-                      <Calendar className="w-4 h-4 text-blue-700" /> Tenor Max:{" "}
-                      {p.maxTenorMonths} bln
-                    </div>
-                    <div className="inline-flex items-center gap-1 col-span-2">
-                      <Info className="w-4 h-4 text-blue-700" /> Proses:{" "}
-                      {p.processingDays} hari
-                    </div>
-                    <div className="inline-flex items-center gap-2 col-span-2 mt-2">
-                      <span className="px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200">
-                        Match Score: {(p as any).matchScore}% Cocok
-                      </span>
-                    </div>
-                    <button className="col-span-2 mt-2 px-3 py-2 rounded-md bg-primary text-white text-sm">
-                      Ajukan via Mitra
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+
+              <button
+                type="button"
+                aria-label="next"
+                onClick={() => {
+                  const el = carouselRef.current;
+                  if (!el) return;
+                  el.scrollBy({
+                    left: Math.floor(el.clientWidth * 0.8),
+                    behavior: "smooth",
+                  });
+                }}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-white shadow-md border hidden md:inline-flex"
+              >
+                ›
+              </button>
             </div>
           </section>
 
@@ -241,7 +312,7 @@ function Permodalan() {
             <div className="inline-flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-blue-700" />
               <p className="text-sm text-blue-800">
-                CATALYST hanya bermitra dengan lembaga legal. Hindari Pinjaman
+                LEDGERIS hanya bermitra dengan lembaga legal. Hindari Pinjaman
                 Online ilegal yang tidak terdaftar di OJK.
               </p>
             </div>
