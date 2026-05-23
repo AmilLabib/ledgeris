@@ -10,7 +10,7 @@ export default function Subscription() {
           objectives.
         </p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-stretch">
           {/* Free */}
           <div className="bg-white rounded-2xl p-6 shadow-md flex flex-col h-full">
             <div className="flex items-start gap-3">
@@ -67,7 +67,7 @@ export default function Subscription() {
 
             <div className="mt-6 flex items-center justify-between h-14">
               <div className="text-lg font-bold text-gray-800 flex items-center h-full">
-                Rp 53.000 / bulan
+                Rp 43.000 / bulan
               </div>
               <button className="bg-primary text-white px-4 py-2 rounded-full h-10 flex items-center justify-center">
                 Pilih
@@ -103,7 +103,40 @@ export default function Subscription() {
 
             <div className="mt-6 flex items-center justify-between h-14">
               <div className="text-lg font-bold text-gray-800 flex items-center h-full">
-                Rp 103.000 / bulan
+                Rp 85.000 / bulan
+              </div>
+              <button className="bg-primary text-white px-4 py-2 rounded-full h-10 flex items-center justify-center">
+                Pilih
+              </button>
+            </div>
+          </div>
+
+          {/* Konsultasi */}
+          <div className="bg-white rounded-2xl p-6 shadow-md flex flex-col h-full">
+            <div className="flex items-start gap-3">
+              <div className="text-primary text-2xl">💬</div>
+              <div>
+                <h2 className="text-xl font-semibold text-primary">
+                  Konsultasi
+                </h2>
+                <p className="text-gray-700 mt-2">
+                  Paket konsultasi bisnis dengan 4 sesi.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 flex-1">
+              <p className="font-medium">Termasuk</p>
+              <ul className="list-disc ml-5 mt-2 text-gray-700 space-y-1">
+                <li>4x sesi konsultasi bisnis</li>
+                <li>Prioritas jadwal</li>
+                <li>Follow-up email</li>
+              </ul>
+            </div>
+
+            <div className="mt-6 flex items-center justify-between h-14">
+              <div className="text-lg font-bold text-gray-800 flex items-center h-full">
+                Rp 195.000 (4x)
               </div>
               <button className="bg-primary text-white px-4 py-2 rounded-full h-10 flex items-center justify-center">
                 Pilih
