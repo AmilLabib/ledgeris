@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchMarketPricing } from "../utils/pricing";
 import { usePageTitle } from "../hooks/usePageTitle";
 import { useDemoMode } from "../context/DemoModeContext";
-import Anthropic from "@anthropic-ai/sdk";
 import {
   BarChart3,
   Image as ImageIcon,
@@ -11,20 +10,6 @@ import {
   Plus,
   RefreshCw,
 } from "lucide-react";
-
-const getBaseUrl = () => {
-  const origin =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : "http://localhost:5173";
-  return `${origin}/anthropic`;
-};
-
-const anthropic = new Anthropic({
-  apiKey: import.meta.env.VITE_CLAUDE_API_KEY || "API_KEY_ANDA",
-  baseURL: getBaseUrl(),
-  dangerouslyAllowBrowser: true, // Required when calling from frontend
-});
 
 type FormState = {
   productName: string;
@@ -185,34 +170,115 @@ export default function SmartPricing() {
     setLoading(true);
     setImageUrl(null);
 
-    const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || "API_KEY_ANDA";
-    const GOOGLE_CX = import.meta.env.VITE_GOOGLE_CX || "CX_ANDA";
-    
+    console.groupCollapsed(`[SmartPricing] Fetch start: "${form.productName}"`);
+    console.log("[SmartPricing] Step 1/6 - Init fetch flow");
+
+    const SERPER_API_KEY = import.meta.env.VITE_SERPER_API_KEY || "";
+
     let dataPencarian = "";
-    let linkGambar = null;
+    let linkGambar: string | null = null;
 
     try {
-      // 1. Fetch text snippets
-      const queryTeks = encodeURIComponent(`harga ${form.productName}`);
-      const teksUrl = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_CX}&q=${queryTeks}`;
-      const resTeks = await fetch(teksUrl);
-      const dataTeks = await resTeks.json();
-      
-      if (dataTeks.items && dataTeks.items.length > 0) {
-        dataPencarian = dataTeks.items.map((item: any) => item.snippet).join("\n");
+      console.log("[SmartPricing] Step 2/6 - Validate Serper API key");
+      if (!SERPER_API_KEY) {
+        throw new Error("VITE_SERPER_API_KEY belum di-set");
       }
 
-      // 2. Fetch image
-      const queryGambar = encodeURIComponent(`${form.productName} segar`);
-      const gambarUrl = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_CX}&q=${queryGambar}&searchType=image`;
-      const resGambar = await fetch(gambarUrl);
-      const dataGambar = await resGambar.json();
+      console.log("[Serper] Text search request -> /search");
+      const resTeks = await fetch("https://google.serper.dev/search", {
+        method: "POST",
+        headers: {
+          "X-API-KEY": SERPER_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          q: `harga ${form.productName}`,
+          gl: "id",
+          hl: "id",
+        }),
+      });
 
-      if (dataGambar.items && dataGambar.items.length > 0) {
-        linkGambar = dataGambar.items[0].link;
+      if (!resTeks.ok) {
+        const errorText = await resTeks.text();
+        console.error("[Serper] Text search failed", {
+          status: resTeks.status,
+          body: errorText,
+        });
+        throw new Error(
+          `Serper text search failed: ${resTeks.status} ${errorText}`,
+        );
+      }
+
+      const dataTeks = await resTeks.json();
+      const organicCount = Array.isArray(dataTeks?.organic)
+        ? dataTeks.organic.length
+        : 0;
+      console.log("[Serper] Text search success", { organicCount });
+
+      if (Array.isArray(dataTeks?.organic) && dataTeks.organic.length > 0) {
+        dataPencarian = dataTeks.organic
+          .map((item: any) => item?.snippet || item?.title || "")
+          .filter(Boolean)
+          .join("\n");
+      }
+
+      // Fallback kandidat image dari /search jika ada
+      if (Array.isArray(dataTeks?.images) && dataTeks.images.length > 0) {
+        const img = dataTeks.images[0];
+        linkGambar = img?.imageUrl || img?.thumbnailUrl || img?.link || null;
+        console.log("[Image] Candidate from /search", { linkGambar });
+      }
+
+      console.log("[Serper] Image search request -> /images");
+      const resImage = await fetch("https://google.serper.dev/images", {
+        method: "POST",
+        headers: {
+          "X-API-KEY": SERPER_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          q: form.productName,
+          gl: "id",
+          hl: "id",
+        }),
+      });
+
+      if (!resImage.ok) {
+        const errorText = await resImage.text();
+        console.warn("[Serper] Image search failed", {
+          status: resImage.status,
+          body: errorText,
+        });
+      } else {
+        const dataImage = await resImage.json();
+        const imageList = Array.isArray(dataImage?.images)
+          ? dataImage.images
+          : [];
+        console.log("[Serper] Image search success", {
+          imageCount: imageList.length,
+        });
+
+        if (imageList.length > 0) {
+          const picked = imageList
+            .map(
+              (img: any) =>
+                img?.imageUrl ||
+                img?.thumbnailUrl ||
+                img?.link ||
+                img?.sourceUrl,
+            )
+            .find(Boolean);
+
+          if (picked) {
+            linkGambar = picked;
+            console.log("[Image] Candidate selected from /images", {
+              linkGambar,
+            });
+          }
+        }
       }
     } catch (err) {
-      console.warn("Gagal mengambil data dari Google Search API:", err);
+      console.warn("[Serper] Gagal mengambil data dari Serper API:", err);
     }
 
     let finalParsed: any = null;
@@ -222,6 +288,10 @@ export default function SmartPricing() {
     while (attempts < maxAttempts && !finalParsed) {
       attempts++;
       try {
+        console.log(
+          `[Claude] Step 3/6 - Attempt ${attempts}/${maxAttempts} request`,
+        );
+
         const prompt = `Gua butuh lu nganalisis harga wajar produk: "${String(
           form.productName,
         ).replace(/\"/g, '\\"')}".
@@ -241,80 +311,143 @@ ATURAN MUTLAK:
 2. DILARANG MERUBAH NAMA KEY (jangan gunakan "min", "max", dll).
 3. Harga dalam nominal angka penuh Rupiah (contoh: 55000, bukan 55).`;
 
-        const response = await anthropic.messages.create({
-          model: "claude-3-5-sonnet-20241022",
-          max_tokens: 1024,
-          messages: [
-            { role: "user", content: prompt },
-            { role: "assistant", content: "{" }
-          ],
+        const res = await fetch("/anthropic/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": import.meta.env.VITE_CLAUDE_API_KEY || "",
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: "claude-3-5-sonnet-20241022",
+            max_tokens: 1024,
+            messages: [
+              { role: "user", content: prompt },
+              { role: "assistant", content: "{" },
+            ],
+          }),
         });
 
-        // Gabungkan kembali kurung kurawal pembuka yang kita paksa di awal
-        const assistantReply =
-          "{" + (response.content[0].type === "text" ? response.content[0].text : "");
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error("[Claude] API failed", {
+            status: res.status,
+            body: errorText,
+            attempt: attempts,
+          });
+          throw new Error(`HTTP ${res.status}: ${errorText}`);
+        }
 
-        console.log(`🤖 Claude Raw Response (Attempt ${attempts}):`, assistantReply);
+        const response = await res.json();
+
+        const assistantReply =
+          "{" +
+          (response?.content?.[0]?.type === "text"
+            ? response.content[0].text
+            : "");
+
+        console.log(
+          `[Claude] Raw response attempt ${attempts}:`,
+          assistantReply,
+        );
 
         let parsed: any = null;
         try {
-          // Coba JSON murni dulu
           const endIndex = assistantReply.lastIndexOf("}");
           const cleanJson = assistantReply.substring(0, endIndex + 1);
           parsed = JSON.parse(cleanJson);
-          console.log(`✅ Parsed JSON (Attempt ${attempts}):`, parsed);
+          console.log(`[Claude] Parsed JSON attempt ${attempts}:`, parsed);
         } catch (e) {
-          console.warn("⚠️ JSON.parse gagal, mencoba Regex Extraction (Proxy Artifact Bypass)...");
-          
-          // Regex Fallback: Ambil angka dan string secara paksa dari raw text
+          console.warn(
+            `[Claude] JSON.parse gagal attempt ${attempts}, coba regex fallback`,
+          );
+
           const avgMatch = assistantReply.match(/"average"\s*:\s*(\d+)/i);
           const lowMatch = assistantReply.match(/"lowest"\s*:\s*(\d+)/i);
           const highMatch = assistantReply.match(/"highest"\s*:\s*(\d+)/i);
 
           if (avgMatch || lowMatch || highMatch) {
-             parsed = {
-                average: avgMatch ? Number(avgMatch[1]) : 0,
-                lowest: lowMatch ? Number(lowMatch[1]) : 0,
-                highest: highMatch ? Number(highMatch[1]) : 0
-             };
-             console.log(`✅ Parsed via Regex (Attempt ${attempts}):`, parsed);
+            parsed = {
+              average: avgMatch ? Number(avgMatch[1]) : 0,
+              lowest: lowMatch ? Number(lowMatch[1]) : 0,
+              highest: highMatch ? Number(highMatch[1]) : 0,
+            };
+            console.log(
+              `[Claude] Parsed via regex attempt ${attempts}:`,
+              parsed,
+            );
           } else {
-             console.error("❌ Ekstraksi Regex juga gagal.", "String:", assistantReply);
+            console.error("[Claude] Regex extraction gagal", {
+              attempt: attempts,
+              assistantReply,
+            });
           }
         }
 
-        // Validasi nominal ribuan: kadang AI membandel mengirim 55 alih-alih 55000
         if (parsed && (parsed.average || parsed.lowest || parsed.highest)) {
-          if (parsed.average > 0 && parsed.average < 1000) parsed.average *= 1000;
+          if (parsed.average > 0 && parsed.average < 1000)
+            parsed.average *= 1000;
           if (parsed.lowest > 0 && parsed.lowest < 1000) parsed.lowest *= 1000;
-          if (parsed.highest > 0 && parsed.highest < 1000) parsed.highest *= 1000;
+          if (parsed.highest > 0 && parsed.highest < 1000)
+            parsed.highest *= 1000;
         }
 
         if (parsed && (parsed.average || parsed.lowest || parsed.highest)) {
           finalParsed = parsed;
+          console.log("[Claude] Step 4/6 - Final parsed pricing acquired", {
+            finalParsed,
+          });
         }
       } catch (err) {
-        console.warn(`Fetch attempt ${attempts} failed:`, err);
+        console.warn(`[Claude] Fetch attempt ${attempts} failed:`, err);
       }
     }
 
-    if (finalParsed && (finalParsed.average || finalParsed.lowest || finalParsed.highest)) {
+    if (
+      finalParsed &&
+      (finalParsed.average || finalParsed.lowest || finalParsed.highest)
+    ) {
       const m = {
         average: Number(finalParsed.average) || 0,
         lowest: Number(finalParsed.lowest) || 0,
         highest: Number(finalParsed.highest) || 0,
       };
       setMarket(m);
-      if (linkGambar) setImageUrl(linkGambar);
-      else setImageUrl(null);
+
+      if (linkGambar) {
+        setImageUrl(linkGambar);
+        console.log("[Image] Step 5/6 - Image set from Serper", { linkGambar });
+      } else {
+        const fallbackUrl = `https://placehold.co/400x400?text=${encodeURIComponent(
+          form.productName || "No Image",
+        )}`;
+        setImageUrl(fallbackUrl);
+        console.warn("[Image] Step 5/6 - No image from Serper, use fallback", {
+          fallbackUrl,
+        });
+      }
+
       setLoading(false);
+      console.log("[SmartPricing] Step 6/6 - Completed with Claude pricing");
+      console.groupEnd();
       return;
     }
 
-    // Fallback: deterministic mock pricing
+    console.warn("[Fallback] Claude parsing gagal, pakai mock pricing");
     const m = await fetchMarketPricing(form.productName);
     setMarket(m);
+
+    const fallbackUrl = `https://placehold.co/400x400?text=${encodeURIComponent(
+      form.productName || "No Image",
+    )}`;
+    setImageUrl(linkGambar || fallbackUrl);
+
     setLoading(false);
+    console.log("[SmartPricing] Completed with fallback market pricing", {
+      market: m,
+      image: linkGambar || fallbackUrl,
+    });
+    console.groupEnd();
   };
 
   const handleDemoIcedTea = async () => {
@@ -339,7 +472,6 @@ ATURAN MUTLAK:
   useEffect(() => {
     if (!demoRunId) return;
     void handleDemoIcedTea();
-     
   }, [demoRunId]);
 
   const breakEven = breakEvenPerUnit();
@@ -504,7 +636,7 @@ ATURAN MUTLAK:
               className="inline-flex items-center justify-center gap-2 px-8 py-3 md:py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-rose-500 text-white hover:opacity-90 disabled:opacity-60 font-bold text-lg shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
             >
               <Sparkles className="w-5 h-5" />
-              {loading ? "Claude Mencari..." : "Tanya Claude (Web Search)"}
+              {loading ? "Mengambil data..." : "Ambil Data Pasar"}
             </button>
           </div>
         </div>
@@ -521,7 +653,7 @@ ATURAN MUTLAK:
                   onError={(e) => {
                     // Fallback jika URL gambar dari AI error/404, gunakan placehold.co yang lebih reliable
                     const fallbackUrl = `https://placehold.co/400x400?text=${encodeURIComponent(
-                      form.productName || "Image Error"
+                      form.productName || "Image Error",
                     )}`;
                     if (e.currentTarget.src !== fallbackUrl) {
                       e.currentTarget.src = fallbackUrl;

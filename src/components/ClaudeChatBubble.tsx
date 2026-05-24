@@ -1,21 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { MessageCircle, X, Send, Loader2 } from "lucide-react";
-import Anthropic from "@anthropic-ai/sdk";
 import { useLocation } from "react-router-dom";
-
-const getBaseUrl = () => {
-  const origin =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : "http://localhost:5173";
-  return `${origin}/anthropic`;
-};
-
-const anthropic = new Anthropic({
-  apiKey: import.meta.env.VITE_CLAUDE_API_KEY || "API_KEY_ANDA",
-  baseURL: getBaseUrl(),
-  dangerouslyAllowBrowser: true, // Required when calling from frontend
-});
 
 export default function ClaudeChatBubble() {
   const location = useLocation();
@@ -83,7 +68,7 @@ export default function ClaudeChatBubble() {
         content: msg.content,
       }));
 
-      const response = await anthropic.messages.create({
+      const payload = {
         model: "claude-3-5-sonnet-20241022",
         max_tokens: 1024,
         system: `Kamu adalah AI Assistant untuk aplikasi bernama 'Catalys', sebuah platform manajemen keuangan dan operasional untuk UMKM. Selalu jawab menggunakan bahasa indonesia tanpa menggunakan emoji atau karakter untuk menebalkan, memiringkan atau mengubah warna teks. 
@@ -107,10 +92,27 @@ Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau memi
           apiMessages.length > 0
             ? apiMessages
             : [{ role: "user", content: userMessage }],
+      };
+
+      const res = await fetch("/anthropic/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": import.meta.env.VITE_CLAUDE_API_KEY || "",
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify(payload),
       });
 
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
+      }
+
+      const response = await res.json();
+
       const replyText =
-        response.content[0].type === "text"
+        response?.content?.[0]?.type === "text"
           ? response.content[0].text
           : "Response received.";
 
