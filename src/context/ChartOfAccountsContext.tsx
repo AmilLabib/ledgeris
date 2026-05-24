@@ -1264,7 +1264,7 @@ const LEGACY_ACCOUNT_NAMES = new Set([
   "Other Current Assets",
   "Property, Plant & Equipment (net)",
   "Intangible Assets",
-  "Trade Payables",
+  "Trade Payable",
   "Short-term Borrowings",
   "Other Current Liabilities",
   "Long-term Borrowings",
