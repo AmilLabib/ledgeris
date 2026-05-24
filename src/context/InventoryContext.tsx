@@ -8,7 +8,8 @@ export type InventoryItem = {
   category: string;
   qty: number;
   unit: string;
-  unitCost: number;
+  unitCost: number; // HPP
+  sellingPrice: number; // Harga jual
   image?: string;
   supplier?: string;
 };
@@ -35,6 +36,7 @@ function seedForSector(sector: BusinessSector): InventoryItem[] {
     unitCost: number,
     folder: string,
     idx: number,
+    sellingPrice?: number,
   ) =>
     ({
       id: `${sector}-${n.replace(/\s+/g, "-")}-${Math.floor(Math.random() * 10000)}`,
@@ -43,6 +45,7 @@ function seedForSector(sector: BusinessSector): InventoryItem[] {
       qty,
       unit: "pcs",
       unitCost,
+      sellingPrice: sellingPrice ?? Math.round((unitCost * 1.3) / 500) * 500,
       image: `/${encodeURIComponent(folder)}/${idx}.png`,
       supplier: "Default Supplier",
     }) as InventoryItem;
@@ -304,7 +307,10 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   // stored inventory for all sectors on mount so the seeded data becomes
   // authoritative (per user's request to replace previous inventory).
   const [products, setProductsState] = useState<InventoryItem[]>(() =>
-    seedForSector(sector),
+    seedForSector(sector).map((item) => ({
+      ...item,
+      sellingPrice: item.sellingPrice ?? item.unitCost,
+    })),
   );
 
   // Overwrite any previously stored inventory for all sectors with the
@@ -338,10 +344,29 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(key);
-      if (raw) setProductsState(JSON.parse(raw));
-      else setProductsState(seedForSector(sector));
+      if (raw) {
+        const parsed = JSON.parse(raw) as InventoryItem[];
+        setProductsState(
+          parsed.map((item) => ({
+            ...item,
+            sellingPrice: item.sellingPrice ?? item.unitCost,
+          })),
+        );
+      } else {
+        setProductsState(
+          seedForSector(sector).map((item) => ({
+            ...item,
+            sellingPrice: item.sellingPrice ?? item.unitCost,
+          })),
+        );
+      }
     } catch {
-      setProductsState(seedForSector(sector));
+      setProductsState(
+        seedForSector(sector).map((item) => ({
+          ...item,
+          sellingPrice: item.sellingPrice ?? item.unitCost,
+        })),
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sector]);
@@ -356,6 +381,7 @@ export function InventoryProvider({ children }: { children: React.ReactNode }) {
     const item: InventoryItem = {
       id: `prod-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       ...p,
+      sellingPrice: p.sellingPrice ?? p.unitCost,
     };
     setProductsState((s) => [item, ...s]);
   };

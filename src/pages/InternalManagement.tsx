@@ -237,6 +237,7 @@ type InventoryItem = {
   qty: number;
   unit: string;
   unitCost: number;
+  sellingPrice: number;
   image: string;
   supplier: string;
 };
@@ -581,6 +582,7 @@ export default function InternalManagement() {
       qty: 0,
       unit: "pcs",
       unitCost: 0,
+      sellingPrice: 0,
       image: "",
       supplier: "",
     },
@@ -657,6 +659,7 @@ export default function InternalManagement() {
       qty: 0,
       unit: "pcs",
       unitCost: 0,
+      sellingPrice: 0,
       image: "",
       supplier: "",
     });
@@ -864,6 +867,7 @@ export default function InternalManagement() {
                     qty: 0,
                     unit: "pcs",
                     unitCost: 0,
+                    sellingPrice: 0,
                     image: "",
                     supplier: "",
                   });
@@ -902,10 +906,14 @@ export default function InternalManagement() {
                         </span>
                         <span className="text-sm text-gray-300">•</span>
                         <span className="text-sm font-semibold text-emerald-600">
-                          {formatRupiah(item.unitCost)}
+                          HPP: {formatRupiah(item.unitCost)}
                           <span className="text-xs text-gray-500 font-normal">
                             /{item.unit}
                           </span>
+                        </span>
+                        <span className="text-sm text-primary font-semibold">
+                          Harga Jual:{" "}
+                          {formatRupiah(item.sellingPrice ?? item.unitCost)}
                         </span>
                       </div>
                       <p className="text-xs text-gray-500 truncate mt-2">
@@ -928,6 +936,7 @@ export default function InternalManagement() {
                             qty: item.qty,
                             unit: item.unit,
                             unitCost: item.unitCost,
+                            sellingPrice: item.sellingPrice ?? item.unitCost,
                             image: item.image || "",
                             supplier: item.supplier || "",
                           });
@@ -1202,18 +1211,36 @@ export default function InternalManagement() {
           </div>
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">
-              Unit Cost
+              HPP
             </label>
             <input
               type="number"
               min={0}
-              placeholder="Unit cost"
+              placeholder="HPP"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary/50 transition-shadow"
               value={inventoryForm.unitCost || ""}
               onChange={(e) =>
                 setInventoryForm((p) => ({
                   ...p,
                   unitCost: Number(e.target.value) || 0,
+                }))
+              }
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">
+              Harga Jual
+            </label>
+            <input
+              type="number"
+              min={0}
+              placeholder="Harga jual"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-primary/50 transition-shadow"
+              value={inventoryForm.sellingPrice || ""}
+              onChange={(e) =>
+                setInventoryForm((p) => ({
+                  ...p,
+                  sellingPrice: Number(e.target.value) || 0,
                 }))
               }
             />

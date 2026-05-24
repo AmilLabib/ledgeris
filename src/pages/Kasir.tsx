@@ -51,7 +51,7 @@ export default function Kasir() {
         {
           id: prod.id,
           name: prod.name,
-          price: prod.unitCost,
+          price: prod.sellingPrice ?? prod.unitCost,
           category: prod.category,
           image: prod.image || "",
           quantity: 1,
@@ -253,7 +253,7 @@ export default function Kasir() {
                       {product.name}
                     </h3>
                     <p className="text-primary font-bold mt-1 text-sm">
-                      {formatRupiah(product.unitCost)}
+                      {formatRupiah(product.sellingPrice ?? product.unitCost)}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       Stok: {product.qty}
