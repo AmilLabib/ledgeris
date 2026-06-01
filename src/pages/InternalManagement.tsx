@@ -242,6 +242,8 @@ type InventoryItem = {
   supplier: string;
 };
 
+type CostLine = { id: string; label: string; amount: number };
+
 function SupplyChainDiagram({
   suppliers,
   rawMaterials,
@@ -679,6 +681,53 @@ export default function InternalManagement() {
     } catch {}
   }, [note]);
 
+  // COGS Maker state: mode (produsen/distributor) and dynamic cost lines
+  const [cogsMode, setCogsMode] = useState<"produsen" | "distributor">(
+    "produsen",
+  );
+  const [producerCosts, setProducerCosts] = useState<CostLine[]>(() => [
+    { id: `p-raw`, label: "Bahan Baku", amount: 0 },
+    { id: `p-labor`, label: "Tenaga Kerja", amount: 0 },
+    { id: `p-overhead`, label: "Overhead Pabrik", amount: 0 },
+    { id: `p-packaging`, label: "Kemasan", amount: 0 },
+  ]);
+  const [distributorCosts, setDistributorCosts] = useState<CostLine[]>(() => [
+    { id: `d-purchase`, label: "Harga Pembelian", amount: 0 },
+    { id: `d-shipping`, label: "Pengiriman & Logistik", amount: 0 },
+    { id: `d-warehousing`, label: "Penyimpanan", amount: 0 },
+    { id: `d-commission`, label: "Komisi", amount: 0 },
+  ]);
+
+  const updateCosts = (updater: (prev: CostLine[]) => CostLine[]) => {
+    if (cogsMode === "produsen") setProducerCosts(updater);
+    else setDistributorCosts(updater);
+  };
+
+  const addCostLine = () => {
+    const id = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    updateCosts((prev) => [...prev, { id, label: "Other", amount: 0 }]);
+  };
+
+  const updateCostLine = (id: string, patch: Partial<CostLine>) => {
+    updateCosts((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    );
+  };
+
+  const removeCostLine = (id: string) => {
+    updateCosts((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const currentCosts =
+    cogsMode === "produsen" ? producerCosts : distributorCosts;
+  const cogsTotal = useMemo(
+    () => currentCosts.reduce((s, c) => s + Number(c.amount || 0), 0),
+    [currentCosts],
+  );
+
+  const [cogsSaveMessage, setCogsSaveMessage] = useState<string | null>(null);
+  const [cogsSaveError, setCogsSaveError] = useState<string | null>(null);
+
   return (
     <div className="min-h-screen bg-transparent">
       <div className="max-w-[80rem] mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
@@ -691,7 +740,7 @@ export default function InternalManagement() {
         {/* Layout grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Supply Chain & Cost Accounting - prominent */}
-          <section className="lg:col-span-8 bg-gradient-to-b from-[#f2fcf9] from-2% to-white rounded-2xl p-6 shadow-md min-w-0 card-hover">
+          <section className="lg:col-span-6 bg-white rounded-2xl p-6 shadow-md min-w-0 card-hover">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Factory className="w-5 h-5 text-gray-500" />
@@ -760,7 +809,8 @@ export default function InternalManagement() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-
+          </section>
+          <section className="lg:col-span-6 bg-white rounded-2xl p-6 shadow-md min-w-0 card-hover">
             {/* Supply Chain Diagram */}
             <div className="mt-6">
               <h3 className="text-base font-semibold mb-2">
@@ -781,188 +831,8 @@ export default function InternalManagement() {
             </div>
           </section>
 
-          {/* Supplier Management */}
-          <section className="lg:col-span-4 bg-gradient-to-b from-[#f2fcf9] from-2% to-white rounded-2xl p-6 shadow-md min-w-0 card-hover flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Factory className="w-5 h-5 text-gray-500" />
-                <h2 className="text-xl font-semibold">Supplier Management</h2>
-              </div>
-              <button
-                onClick={() => {
-                  setEditingSupplierIndex(null);
-                  setSupplierForm({ name: "", materialsText: "" });
-                  setIsSupplierModalOpen(true);
-                }}
-                className="flex items-center gap-1 px-3 py-1.5 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 transition-colors shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                Add
-              </button>
-            </div>
-            <div className="rounded-xl border p-4 flex-1 overflow-hidden flex flex-col">
-              <div className="space-y-2 overflow-y-auto pr-1 flex-1">
-                {suppliers.map((s, idx) => (
-                  <div
-                    key={`${s.name}-${idx}`}
-                    className="border border-gray-100 rounded-lg p-3 flex items-start justify-between gap-2 bg-white hover:shadow-sm transition-all"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-800 truncate">
-                        {s.name}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate mt-1">
-                        Materials:{" "}
-                        <span className="font-medium text-gray-700">
-                          {s.materials.join(", ") || "-"}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="flex gap-2 text-xs shrink-0">
-                      <button
-                        type="button"
-                        className="px-2 py-1 rounded-md border border-gray-200 bg-white hover:bg-gray-50 font-medium"
-                        onClick={() => {
-                          setEditingSupplierIndex(idx);
-                          setSupplierForm({
-                            name: s.name,
-                            materialsText: s.materials.join(", "),
-                          });
-                          setIsSupplierModalOpen(true);
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="px-2 py-1 rounded-md border border-red-100 text-red-600 bg-white hover:bg-red-50 font-medium"
-                        onClick={() =>
-                          setSuppliers((prev) =>
-                            prev.filter((_, i) => i !== idx),
-                          )
-                        }
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* Inventory Management */}
-          <section className="lg:col-span-8 bg-gradient-to-b from-[#f2fcf9] from-2% to-white rounded-2xl p-6 shadow-md min-w-0 card-hover">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Factory className="w-5 h-5 text-gray-500" />
-                <h2 className="text-xl font-semibold">Inventory Management</h2>
-              </div>
-              <button
-                onClick={() => {
-                  setEditingInventoryId(null);
-                  setInventoryForm({
-                    name: "",
-                    category: "Kuliner",
-                    qty: 0,
-                    unit: "pcs",
-                    unitCost: 0,
-                    sellingPrice: 0,
-                    image: "",
-                    supplier: "",
-                  });
-                  setIsInventoryModalOpen(true);
-                }}
-                className="flex items-center gap-1 px-3 py-1.5 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 transition-colors shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                Add Item
-              </button>
-            </div>
-            <div className="rounded-xl border p-4 bg-white/50">
-              <div className="space-y-4 max-h-96 overflow-y-auto pr-2 pb-4 pt-2">
-                {inventoryItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="border border-gray-100 bg-white rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-4 shadow-sm hover:shadow-md transition-shadow relative"
-                  >
-                    <div className="relative shrink-0 self-center sm:self-auto">
-                      <img
-                        src={item.image || "https://via.placeholder.com/150"}
-                        alt={item.name}
-                        className="w-24 h-24 rounded-2xl object-cover border-4 border-white shadow-[0_8px_20px_rgba(0,0,0,0.15)] hover:-translate-y-2 hover:shadow-[0_15px_30px_rgba(0,0,0,0.25)] transition-all duration-300 relative z-10"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1 text-center sm:text-left">
-                      <p className="font-semibold text-lg text-gray-800 truncate">
-                        {item.name}
-                      </p>
-                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100">
-                          {item.category}
-                        </span>
-                        <span className="text-sm text-gray-600 font-medium">
-                          {item.qty} {item.unit}
-                        </span>
-                        <span className="text-sm text-gray-300">•</span>
-                        <span className="text-sm font-semibold text-emerald-600">
-                          HPP: {formatRupiah(item.unitCost)}
-                          <span className="text-xs text-gray-500 font-normal">
-                            /{item.unit}
-                          </span>
-                        </span>
-                        <span className="text-sm text-primary font-semibold">
-                          Harga Jual:{" "}
-                          {formatRupiah(item.sellingPrice ?? item.unitCost)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 truncate mt-2">
-                        Supplier:{" "}
-                        <span className="font-medium text-gray-700">
-                          {item.supplier}
-                        </span>
-                      </p>
-                    </div>
-                    <div className="flex justify-center sm:flex-col gap-2 text-sm shrink-0">
-                      <button
-                        type="button"
-                        className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors font-medium"
-                        onClick={() => {
-                          setEditingInventoryId(item.id);
-                          setInventoryForm({
-                            name: item.name,
-                            category:
-                              (item.category as InventoryCategory) || "",
-                            qty: item.qty,
-                            unit: item.unit,
-                            unitCost: item.unitCost,
-                            sellingPrice: item.sellingPrice ?? item.unitCost,
-                            image: item.image || "",
-                            supplier: item.supplier || "",
-                          });
-                          setIsInventoryModalOpen(true);
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="px-3 py-1.5 rounded-lg border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 transition-colors font-medium"
-                        onClick={() => {
-                          deleteProduct(item.id);
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
           {/* Human Resources */}
-          <section className="lg:col-span-4 bg-gradient-to-b from-[#f2fcf9] from-2% to-white rounded-2xl p-6 shadow-md min-w-0 card-hover">
+          <section className="lg:col-span-6 bg-white rounded-2xl p-6 shadow-md min-w-0 card-hover">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-gray-500" />
@@ -1084,6 +954,347 @@ export default function InternalManagement() {
               </div>
               {/* Background decoration */}
               <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-purple-200 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
+            </div>
+          </section>
+          {/* Supplier Management */}
+          <section className="lg:col-span-6 bg-white rounded-2xl p-6 shadow-md min-w-0 card-hover flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Factory className="w-5 h-5 text-gray-500" />
+                <h2 className="text-xl font-semibold">Supplier Management</h2>
+              </div>
+              <button
+                onClick={() => {
+                  setEditingSupplierIndex(null);
+                  setSupplierForm({ name: "", materialsText: "" });
+                  setIsSupplierModalOpen(true);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 transition-colors shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                Add
+              </button>
+            </div>
+            <div className="rounded-xl border p-4 flex-1 overflow-hidden flex flex-col">
+              <div className="space-y-2 overflow-y-auto pr-1 flex-1">
+                {suppliers.map((s, idx) => (
+                  <div
+                    key={`${s.name}-${idx}`}
+                    className="border border-gray-100 rounded-lg p-3 flex items-start justify-between gap-2 bg-white hover:shadow-sm transition-all"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-800 truncate">
+                        {s.name}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate mt-1">
+                        Materials:{" "}
+                        <span className="font-medium text-gray-700">
+                          {s.materials.join(", ") || "-"}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex gap-2 text-xs shrink-0">
+                      <button
+                        type="button"
+                        className="px-2 py-1 rounded-md border border-gray-200 bg-white hover:bg-gray-50 font-medium"
+                        onClick={() => {
+                          setEditingSupplierIndex(idx);
+                          setSupplierForm({
+                            name: s.name,
+                            materialsText: s.materials.join(", "),
+                          });
+                          setIsSupplierModalOpen(true);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="px-2 py-1 rounded-md border border-red-100 text-red-600 bg-white hover:bg-red-50 font-medium"
+                        onClick={() =>
+                          setSuppliers((prev) =>
+                            prev.filter((_, i) => i !== idx),
+                          )
+                        }
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+          {/* COGS Maker */}
+          <section className="lg:col-span-12 bg-white rounded-2xl p-6 shadow-md min-w-0 card-hover">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Factory className="w-5 h-5 text-gray-500" />
+                <h2 className="text-xl font-semibold">Pembuat HPP (COGS)</h2>
+              </div>
+              <div className="text-sm text-gray-500">
+                Mode: {cogsMode === "produsen" ? "Produsen" : "Distributor"}
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-4">
+              Hitung dan simulasi Biaya Pokok Penjualan (HPP/COGS) berdasarkan
+              peran: Produsen atau Distributor. Pilih mode, tambahkan atau
+              sunting baris biaya, lalu lihat total HPP secara real-time.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <div className="flex gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setCogsMode("produsen")}
+                    className={`px-3 py-1.5 rounded-lg border font-medium ${
+                      cogsMode === "produsen"
+                        ? "bg-primary text-white"
+                        : "bg-white"
+                    }`}
+                  >
+                    Produsen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCogsMode("distributor")}
+                    className={`px-3 py-1.5 rounded-lg border font-medium ${
+                      cogsMode === "distributor"
+                        ? "bg-primary text-white"
+                        : "bg-white"
+                    }`}
+                  >
+                    Distributor
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {currentCosts.map((c) => (
+                    <div
+                      key={c.id}
+                      className="flex items-center gap-2 bg-white p-2 rounded-lg border"
+                    >
+                      <input
+                        type="text"
+                        placeholder="Misal: Bahan Baku, Tenaga Kerja, Overhead"
+                        value={c.label}
+                        onChange={(e) =>
+                          updateCostLine(c.id, { label: e.target.value })
+                        }
+                        className="flex-1 border border-gray-200 rounded-md px-3 py-2"
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={c.amount || ""}
+                        onChange={(e) =>
+                          updateCostLine(c.id, {
+                            amount: Number(e.target.value) || 0,
+                          })
+                        }
+                        className="w-40 border border-gray-200 rounded-md px-3 py-2"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeCostLine(c.id)}
+                        className="text-red-500 px-2 py-1 rounded-md hover:bg-red-50"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  ))}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={addCostLine}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm text-primary hover:bg-primary/5"
+                    >
+                      <Plus className="w-4 h-4" /> Tambah baris biaya
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="md:col-span-1 bg-white rounded-xl p-4 border flex flex-col justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Total HPP</p>
+                  <p className="text-2xl font-semibold text-gray-900 mt-2">
+                    {formatRupiah(cogsTotal)}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    COGS (Bulan ini):{" "}
+                    {formatRupiah(sectorData.inventory.cogsMonthToDate)}
+                  </p>
+                </div>
+                <div className="mt-4">
+                  {cogsSaveError && (
+                    <p className="text-sm text-red-600 mb-2">{cogsSaveError}</p>
+                  )}
+                  {cogsSaveMessage && (
+                    <p className="text-sm text-green-600 mb-2">
+                      {cogsSaveMessage}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // simple validation
+                      const missing = currentCosts.find(
+                        (c) => !c.label || !String(c.label).trim(),
+                      );
+                      if (missing) {
+                        setCogsSaveError("Nama biaya wajib diisi.");
+                        setCogsSaveMessage(null);
+                        return;
+                      }
+                      const invalid = currentCosts.find(
+                        (c) => isNaN(Number(c.amount)) || Number(c.amount) < 0,
+                      );
+                      if (invalid) {
+                        setCogsSaveError(
+                          "Semua jumlah harus berupa angka >= 0.",
+                        );
+                        setCogsSaveMessage(null);
+                        return;
+                      }
+                      try {
+                        localStorage.setItem(
+                          "cogs_maker",
+                          JSON.stringify({
+                            mode: cogsMode,
+                            costs: currentCosts,
+                          }),
+                        );
+                        setCogsSaveMessage("HPP berhasil disimpan.");
+                        setCogsSaveError(null);
+                      } catch (e) {
+                        setCogsSaveError("Gagal menyimpan HPP.");
+                        setCogsSaveMessage(null);
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-lg bg-primary text-white font-medium"
+                  >
+                    Simpan HPP
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-3">
+                  Tip: Gunakan mode yang sesuai. Tambahkan semua biaya langsung
+                  terkait produksi atau pengadaan untuk hasil HPP yang akurat.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Inventory Management */}
+          <section className="lg:col-span-12 bg-white rounded-2xl p-6 shadow-md min-w-0 card-hover">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Factory className="w-5 h-5 text-gray-500" />
+                <h2 className="text-xl font-semibold">Inventory Management</h2>
+              </div>
+              <button
+                onClick={() => {
+                  setEditingInventoryId(null);
+                  setInventoryForm({
+                    name: "",
+                    category: "Kuliner",
+                    qty: 0,
+                    unit: "pcs",
+                    unitCost: 0,
+                    sellingPrice: 0,
+                    image: "",
+                    supplier: "",
+                  });
+                  setIsInventoryModalOpen(true);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 transition-colors shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                Add Item
+              </button>
+            </div>
+            <div className="rounded-xl border p-4 bg-white/50">
+              <div className="space-y-4 max-h-96 overflow-y-auto pr-2 pb-4 pt-2">
+                {inventoryItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="border border-gray-100 bg-white rounded-xl p-4 flex flex-col sm:flex-row sm:items-center gap-4 shadow-sm hover:shadow-md transition-shadow relative"
+                  >
+                    <div className="relative shrink-0 self-center sm:self-auto">
+                      <img
+                        src={item.image || "https://via.placeholder.com/150"}
+                        alt={item.name}
+                        className="w-24 h-24 rounded-2xl object-cover border-4 border-white shadow-[0_8px_20px_rgba(0,0,0,0.15)] hover:-translate-y-2 hover:shadow-[0_15px_30px_rgba(0,0,0,0.25)] transition-all duration-300 relative z-10"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1 text-center sm:text-left">
+                      <p className="font-semibold text-lg text-gray-800 truncate">
+                        {item.name}
+                      </p>
+                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100">
+                          {item.category}
+                        </span>
+                        <span className="text-sm text-gray-600 font-medium">
+                          {item.qty} {item.unit}
+                        </span>
+                        <span className="text-sm text-gray-300">•</span>
+                        <span className="text-sm font-semibold text-emerald-600">
+                          HPP: {formatRupiah(item.unitCost)}
+                          <span className="text-xs text-gray-500 font-normal">
+                            /{item.unit}
+                          </span>
+                        </span>
+                        <span className="text-sm text-primary font-semibold">
+                          Harga Jual:{" "}
+                          {formatRupiah(item.sellingPrice ?? item.unitCost)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 truncate mt-2">
+                        Supplier:{" "}
+                        <span className="font-medium text-gray-700">
+                          {item.supplier}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="flex justify-center sm:flex-col gap-2 text-sm shrink-0">
+                      <button
+                        type="button"
+                        className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors font-medium"
+                        onClick={() => {
+                          setEditingInventoryId(item.id);
+                          setInventoryForm({
+                            name: item.name,
+                            category:
+                              (item.category as InventoryCategory) || "",
+                            qty: item.qty,
+                            unit: item.unit,
+                            unitCost: item.unitCost,
+                            sellingPrice: item.sellingPrice ?? item.unitCost,
+                            image: item.image || "",
+                            supplier: item.supplier || "",
+                          });
+                          setIsInventoryModalOpen(true);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="px-3 py-1.5 rounded-lg border border-red-100 bg-red-50 text-red-600 hover:bg-red-100 transition-colors font-medium"
+                        onClick={() => {
+                          deleteProduct(item.id);
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </section>
         </div>
