@@ -18,6 +18,7 @@ import {
 } from "../data/financials";
 import { useChartOfAccounts } from "../context/ChartOfAccountsContext";
 import { useJournal } from "../context/JournalContext";
+import { useInventory } from "../context/InventoryContext";
 import type {
   Account as ContextAccount,
   AccountType as ContextAccountType,
@@ -486,6 +487,9 @@ export default function Financial() {
   const [infoAccountId, setInfoAccountId] = useState<string | null>(null);
   const infoAccount = infoAccountId ? findAccount(infoAccountId) : undefined;
 
+  // Inventory products (used to estimate HPP/COGS when scanning sales)
+  const { products } = useInventory();
+
   // Accounts CRUD handlers removed by request.
 
   // Journal UI state
@@ -886,9 +890,10 @@ export default function Financial() {
       const dummy = {
         items: [
           { name: "Meja", price: 10000000 },
-          { name: "Kursi", price: 5000000 },
-          { name: "Piring", price: 1500000 },
+          { name: "Kursi", price: 2000000 },
+          { name: "Mangkok", price: 1500000 },
           { name: "Sendok", price: 500000 },
+          { name: "Gelas", price: 1000000 },
         ],
       };
       setScannedData(dummy);
@@ -928,45 +933,102 @@ export default function Financial() {
 
   const submitScannedData = () => {
     if (!scannedData || !scanType) return;
+
     const total = scannedData.items.reduce((sum, item) => sum + item.price, 0);
 
-    const newEntry: JournalEntry = {
-      id: `${Date.now()}`,
-      date: new Date().toISOString().slice(0, 10),
-      description: `Scan Struk ${scanType === "penjualan" ? "Penjualan" : "Pembelian"}`,
-      lines:
-        scanType === "penjualan"
-          ? [
-              {
-                id: `${Date.now()}-1`,
-                side: "debit",
-                accountId: "cash",
-                amount: total,
-              },
-              {
-                id: `${Date.now()}-2`,
-                side: "credit",
-                accountId: "rev",
-                amount: total,
-              },
-            ]
-          : [
-              {
-                id: `${Date.now()}-1`,
-                side: "debit",
-                accountId: "inv",
-                amount: total,
-              },
-              {
-                id: `${Date.now()}-2`,
-                side: "credit",
-                accountId: "cash",
-                amount: total,
-              },
-            ],
-    };
+    // Account IDs from chart of accounts
+    const CASH_ACCOUNT_ID = "1_1_1_01_kas_tunai";
+    const PERLENGKAPAN_ACCOUNT_ID = "1_1_4_03_perlengkapan";
+    const INVENTORY_ACCOUNT_ID = "1_1_4_01_persediaan_barang_dagangan";
+    const REVENUE_ACCOUNT_ID =
+      "4_2_1_01_pendapatan_penjualan_barang_dagangan_non_anggota";
+    const COGS_ACCOUNT_ID = "5_1_1_01_harga_pokok_penjualan_barang_dagangan";
 
-    setEntries([newEntry, ...entries]);
+    if (scanType === "penjualan") {
+      // Sale: record cash and revenue
+      const saleEntry: JournalEntry = {
+        id: `${Date.now()}-sale`,
+        date: new Date().toISOString().slice(0, 10),
+        description: "Scan Struk Penjualan",
+        lines: [
+          {
+            id: `${Date.now()}-s-1`,
+            side: "debit",
+            accountId: CASH_ACCOUNT_ID,
+            amount: total,
+          },
+          {
+            id: `${Date.now()}-s-2`,
+            side: "credit",
+            accountId: REVENUE_ACCOUNT_ID,
+            amount: total,
+          },
+        ],
+      };
+
+      // Estimate HPP/COGS per item by matching inventory product name or using a fallback ratio
+      let cogsSum = 0;
+      for (const item of scannedData.items) {
+        const name = (item.name || "").toLowerCase();
+        const match = products.find(
+          (p) =>
+            p.name.toLowerCase().includes(name) ||
+            name.includes(p.name.toLowerCase()),
+        );
+        if (match) cogsSum += match.unitCost;
+        else cogsSum += Math.round(item.price * 0.6); // fallback: assume ~60% cost
+      }
+
+      const newEntries: JournalEntry[] = [saleEntry];
+      if (cogsSum > 0) {
+        const cogsEntry: JournalEntry = {
+          id: `${Date.now()}-cogs`,
+          date: new Date().toISOString().slice(0, 10),
+          description: "HPP (COGS) dari Struk Penjualan",
+          lines: [
+            {
+              id: `${Date.now()}-c-1`,
+              side: "debit",
+              accountId: COGS_ACCOUNT_ID,
+              amount: cogsSum,
+            },
+            {
+              id: `${Date.now()}-c-2`,
+              side: "credit",
+              accountId: INVENTORY_ACCOUNT_ID,
+              amount: cogsSum,
+            },
+          ],
+        };
+        newEntries.push(cogsEntry);
+      }
+
+      setEntries([...newEntries, ...entries]);
+    } else {
+      // Purchase: debit Perlengkapan, credit Kas
+      const purchaseEntry: JournalEntry = {
+        id: `${Date.now()}-buy`,
+        date: new Date().toISOString().slice(0, 10),
+        description: "Scan Struk Pembelian",
+        lines: [
+          {
+            id: `${Date.now()}-b-1`,
+            side: "debit",
+            accountId: PERLENGKAPAN_ACCOUNT_ID,
+            amount: total,
+          },
+          {
+            id: `${Date.now()}-b-2`,
+            side: "credit",
+            accountId: CASH_ACCOUNT_ID,
+            amount: total,
+          },
+        ],
+      };
+
+      setEntries([purchaseEntry, ...entries]);
+    }
+
     setShowDataModal(false);
     setScannedData(null);
     setScanType(null);
