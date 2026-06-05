@@ -695,48 +695,10 @@ export default function InternalManagement() {
   const [cogsMode, setCogsMode] = useState<"produsen" | "distributor">(
     "produsen",
   );
-  const [producerCosts, setProducerCosts] = useState<CostLine[]>(() => [
-    { id: `p-raw`, label: "Bahan Baku", amount: 0 },
-    { id: `p-labor`, label: "Tenaga Kerja", amount: 0 },
-    { id: `p-overhead`, label: "Overhead Pabrik", amount: 0 },
-    { id: `p-packaging`, label: "Kemasan", amount: 0 },
-  ]);
-  const [distributorCosts, setDistributorCosts] = useState<CostLine[]>(() => [
-    { id: `d-purchase`, label: "Harga Pembelian", amount: 0 },
-    { id: `d-shipping`, label: "Pengiriman & Logistik", amount: 0 },
-    { id: `d-warehousing`, label: "Penyimpanan", amount: 0 },
-    { id: `d-commission`, label: "Komisi", amount: 0 },
-  ]);
-
-  const updateCosts = (updater: (prev: CostLine[]) => CostLine[]) => {
-    if (cogsMode === "produsen") setProducerCosts(updater);
-    else setDistributorCosts(updater);
-  };
-
-  const addCostLine = () => {
-    const id = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-    updateCosts((prev) => [...prev, { id, label: "Other", amount: 0 }]);
-  };
-
-  const updateCostLine = (id: string, patch: Partial<CostLine>) => {
-    updateCosts((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, ...patch } : c)),
-    );
-  };
-
-  const removeCostLine = (id: string) => {
-    updateCosts((prev) => prev.filter((c) => c.id !== id));
-  };
-
-  const currentCosts =
-    cogsMode === "produsen" ? producerCosts : distributorCosts;
-  const cogsTotal = useMemo(
-    () => currentCosts.reduce((s, c) => s + Number(c.amount || 0), 0),
-    [currentCosts],
-  );
-
-  const [cogsSaveMessage, setCogsSaveMessage] = useState<string | null>(null);
-  const [cogsSaveError, setCogsSaveError] = useState<string | null>(null);
+  // NOTE: producer/distributor cost-line arrays and helpers removed
+  // because they are not referenced in the current UI.
+  const [, setCogsSaveMessage] = useState<string | null>(null);
+  const [, setCogsSaveError] = useState<string | null>(null);
 
   // Product-level COGS builder (direct material, labor, overhead)
   const [cogsProductId, setCogsProductId] = useState<string | null>(null);
