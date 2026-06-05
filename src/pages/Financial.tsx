@@ -17,6 +17,7 @@ import {
   checkConsistency,
 } from "../data/financials";
 import { useChartOfAccounts } from "../context/ChartOfAccountsContext";
+import { useJournal } from "../context/JournalContext";
 import type {
   Account as ContextAccount,
   AccountType as ContextAccountType,
@@ -500,7 +501,8 @@ export default function Financial() {
   );
   const [debitFilter, setDebitFilter] = useState("");
   const [creditFilter, setCreditFilter] = useState("");
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  // Use shared journal from context so entries created in Kasir appear here
+  const { entries, setEntries } = useJournal();
   const [journalPage, setJournalPage] = useState(1);
   const journalPageSize = 10;
   const [showDraftAlerts, setShowDraftAlerts] = useState(false);
@@ -788,7 +790,7 @@ export default function Financial() {
       description: description?.trim() || undefined,
       lines: [...debitLines, ...creditLines],
     };
-    setEntries((prev) => [entry, ...prev]);
+    setEntries([entry, ...entries]);
     // Reset UI lines but keep filters
     setDebitLinesUI([{ id: `${Date.now()}-d0`, accountId: "", amount: "" }]);
     setCreditLinesUI([{ id: `${Date.now()}-c0`, accountId: "", amount: "" }]);
@@ -964,14 +966,14 @@ export default function Financial() {
             ],
     };
 
-    setEntries((prev) => [newEntry, ...prev]);
+    setEntries([newEntry, ...entries]);
     setShowDataModal(false);
     setScannedData(null);
     setScanType(null);
   };
 
   const removeEntry = (id: string) =>
-    setEntries((prev) => prev.filter((e) => e.id !== id));
+    setEntries(entries.filter((e) => e.id !== id));
 
   const filteredDebit = accounts.filter((a) =>
     (a.code + " " + a.name).toLowerCase().includes(debitFilter.toLowerCase()),

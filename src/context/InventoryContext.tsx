@@ -9,6 +9,8 @@ export type InventoryItem = {
   qty: number;
   unit: string;
   unitCost: number; // HPP
+  // Per-unit COGS used for pricing/reference (non-accounting COGS)
+  cogsSalesBasis?: number;
   sellingPrice: number; // Harga jual
   image?: string;
   supplier?: string;

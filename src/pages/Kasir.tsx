@@ -10,6 +10,7 @@ interface CartItem {
   category: string;
   image: string;
   quantity: number;
+  unitCost?: number;
 }
 
 interface Order {
@@ -62,6 +63,7 @@ export default function Kasir() {
           category: prod.category,
           image: prod.image || "",
           quantity: 1,
+          unitCost: prod.unitCost,
         },
       ];
     });

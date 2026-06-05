@@ -738,6 +738,51 @@ export default function InternalManagement() {
   const [cogsSaveMessage, setCogsSaveMessage] = useState<string | null>(null);
   const [cogsSaveError, setCogsSaveError] = useState<string | null>(null);
 
+  // Product-level COGS builder (direct material, labor, overhead)
+  const [cogsProductId, setCogsProductId] = useState<string | null>(null);
+  const [cogsUnits, setCogsUnits] = useState<number>(1);
+  const [cogsDirectMaterial, setCogsDirectMaterial] = useState<number>(0);
+  const [cogsDirectLabor, setCogsDirectLabor] = useState<number>(0);
+  const [overheads, setOverheads] = useState<CostLine[]>([]);
+
+  const addOverhead = () =>
+    setOverheads((p) => [
+      ...p,
+      {
+        id: `${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+        label: "Overhead",
+        amount: 0,
+      },
+    ]);
+
+  const updateOverhead = (id: string, patch: Partial<CostLine>) =>
+    setOverheads((p) => p.map((o) => (o.id === id ? { ...o, ...patch } : o)));
+
+  const removeOverhead = (id: string) =>
+    setOverheads((p) => p.filter((o) => o.id !== id));
+
+  const overheadTotal = useMemo(
+    () => overheads.reduce((s, o) => s + Number(o.amount || 0), 0),
+    [overheads],
+  );
+
+  const cogsAccountingPerUnit = useMemo(() => {
+    const u = Number(cogsUnits) || 0;
+    if (u <= 0) return 0;
+    return Number(cogsDirectMaterial || 0) / u;
+  }, [cogsDirectMaterial, cogsUnits]);
+
+  const cogsSalesBasisPerUnit = useMemo(() => {
+    const u = Number(cogsUnits) || 0;
+    if (u <= 0) return 0;
+    return (
+      (Number(cogsDirectMaterial || 0) +
+        Number(cogsDirectLabor || 0) +
+        overheadTotal) /
+      u
+    );
+  }, [cogsDirectMaterial, cogsDirectLabor, overheadTotal, cogsUnits]);
+
   return (
     <div className="min-h-screen bg-transparent">
       <div className="max-w-[80rem] mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
@@ -1080,120 +1125,250 @@ export default function InternalManagement() {
                   </button>
                 </div>
 
-                <div className="space-y-2">
-                  {currentCosts.map((c) => (
-                    <div
-                      key={c.id}
-                      className="flex items-center gap-2 bg-white p-2 rounded-lg border"
-                    >
-                      <input
-                        type="text"
-                        placeholder="Misal: Bahan Baku, Tenaga Kerja, Overhead"
-                        value={c.label}
+                {/* Cost lines for selected mode */}
+                <div className="mb-4 p-3 border rounded-lg bg-white">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm text-gray-700 font-medium">
+                      Baris Biaya (
+                      {cogsMode === "produsen" ? "Produsen" : "Distributor"})
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Total: {formatRupiah(Math.round(cogsTotal))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {currentCosts.map((c) => (
+                      <div key={c.id} className="flex items-center gap-2">
+                        <input
+                          value={c.label}
+                          onChange={(e) =>
+                            updateCostLine(c.id, { label: e.target.value })
+                          }
+                          className="flex-1 border rounded px-2 py-1 text-sm"
+                        />
+                        <input
+                          type="number"
+                          value={c.amount as any}
+                          onChange={(e) =>
+                            updateCostLine(c.id, {
+                              amount: Number(e.target.value),
+                            })
+                          }
+                          className="w-32 border rounded px-2 py-1 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeCostLine(c.id)}
+                          className="text-red-500 px-2 py-1 text-sm"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    ))}
+
+                    <div>
+                      <button
+                        type="button"
+                        onClick={addCostLine}
+                        className="inline-flex items-center gap-2 px-3 py-1 rounded-lg border text-sm"
+                      >
+                        <Plus className="w-4 h-4" /> Tambah Baris Biaya
+                      </button>
+                    </div>
+
+                    {(cogsSaveMessage || cogsSaveError) && (
+                      <div className="mt-2 text-sm">
+                        {cogsSaveError ? (
+                          <div className="text-sm text-red-600">
+                            {cogsSaveError}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-green-600">
+                            {cogsSaveMessage}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Product-level COGS builder */}
+                <div className="mb-4 p-3 border rounded-lg bg-gray-50">
+                  <div className="text-sm text-gray-700 font-medium mb-2">
+                    COGS per Produk
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-gray-600 block mb-1">
+                        Produk
+                      </label>
+                      <select
+                        value={cogsProductId ?? ""}
                         onChange={(e) =>
-                          updateCostLine(c.id, { label: e.target.value })
+                          setCogsProductId(e.target.value || null)
                         }
-                        className="flex-1 border border-gray-200 rounded-md px-3 py-2"
+                        className="w-full border border-gray-200 rounded-md px-3 py-2"
+                      >
+                        <option value="">Pilih produk</option>
+                        {inventoryItems.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-gray-600 block mb-1">
+                        Jumlah unit
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={cogsUnits}
+                        onChange={(e) =>
+                          setCogsUnits(Number(e.target.value) || 0)
+                        }
+                        className="w-full border border-gray-200 rounded-md px-3 py-2"
                       />
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-gray-600 block mb-1">
+                        Bahan Baku (total)
+                      </label>
                       <input
                         type="number"
                         min={0}
-                        placeholder="0"
-                        value={c.amount || ""}
+                        value={cogsDirectMaterial}
                         onChange={(e) =>
-                          updateCostLine(c.id, {
-                            amount: Number(e.target.value) || 0,
-                          })
+                          setCogsDirectMaterial(Number(e.target.value) || 0)
                         }
-                        className="w-40 border border-gray-200 rounded-md px-3 py-2"
+                        className="w-full border border-gray-200 rounded-md px-3 py-2"
                       />
-                      <button
-                        type="button"
-                        onClick={() => removeCostLine(c.id)}
-                        className="text-red-500 px-2 py-1 rounded-md hover:bg-red-50"
-                      >
-                        Hapus
-                      </button>
                     </div>
-                  ))}
-                  <div>
+
+                    <div>
+                      <label className="text-xs text-gray-600 block mb-1">
+                        Tenaga Kerja Langsung (total)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={cogsDirectLabor}
+                        onChange={(e) =>
+                          setCogsDirectLabor(Number(e.target.value) || 0)
+                        }
+                        className="w-full border border-gray-200 rounded-md px-3 py-2"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <div className="text-sm font-medium mb-2">Overheads</div>
+                    <div className="space-y-2">
+                      {overheads.map((o) => (
+                        <div key={o.id} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={o.label}
+                            onChange={(e) =>
+                              updateOverhead(o.id, { label: e.target.value })
+                            }
+                            className="flex-1 border border-gray-200 rounded-md px-3 py-2"
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            value={o.amount || 0}
+                            onChange={(e) =>
+                              updateOverhead(o.id, {
+                                amount: Number(e.target.value) || 0,
+                              })
+                            }
+                            className="w-40 border border-gray-200 rounded-md px-3 py-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeOverhead(o.id)}
+                            className="text-red-500 px-2 py-1 rounded-md"
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      ))}
+                      <div>
+                        <button
+                          type="button"
+                          onClick={addOverhead}
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm text-primary hover:bg-primary/5"
+                        >
+                          <Plus className="w-4 h-4" /> Tambah Overhead
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-xs text-gray-500">
+                        COGS Akuntansi / unit
+                      </div>
+                      <div className="text-lg font-semibold text-gray-900">
+                        {formatRupiah(Math.round(cogsAccountingPerUnit))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">
+                        COGS Dasar Penjualan / unit
+                      </div>
+                      <div className="text-lg font-semibold text-gray-900">
+                        {formatRupiah(Math.round(cogsSalesBasisPerUnit))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex gap-2">
                     <button
                       type="button"
-                      onClick={addCostLine}
-                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed text-sm text-primary hover:bg-primary/5"
+                      onClick={() => {
+                        if (!cogsProductId) {
+                          setCogsSaveError("Pilih produk terlebih dahulu.");
+                          setCogsSaveMessage(null);
+                          return;
+                        }
+                        // apply accounting COGS to unitCost and save sales-basis too
+                        updateProduct(cogsProductId, {
+                          unitCost: Math.round(cogsAccountingPerUnit),
+                          cogsSalesBasis: Math.round(cogsSalesBasisPerUnit),
+                        } as any);
+                        setCogsSaveMessage(
+                          "COGS berhasil diterapkan ke produk.",
+                        );
+                        setCogsSaveError(null);
+                      }}
+                      className="px-3 py-2 rounded-lg bg-primary text-white font-medium"
                     >
-                      <Plus className="w-4 h-4" /> Tambah baris biaya
+                      Terapkan ke produk
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCogsProductId(null);
+                        setCogsUnits(1);
+                        setCogsDirectMaterial(0);
+                        setCogsDirectLabor(0);
+                        setOverheads([]);
+                        setCogsSaveError(null);
+                        setCogsSaveMessage(null);
+                      }}
+                      className="px-3 py-2 rounded-lg border"
+                    >
+                      Reset
                     </button>
                   </div>
                 </div>
-              </div>
-
-              <div className="md:col-span-1 bg-white rounded-xl p-4 border flex flex-col justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Total HPP</p>
-                  <p className="text-2xl font-semibold text-gray-900 mt-2">
-                    {formatRupiah(cogsTotal)}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    COGS (Bulan ini):{" "}
-                    {formatRupiah(sectorData.inventory.cogsMonthToDate)}
-                  </p>
-                </div>
-                <div className="mt-4">
-                  {cogsSaveError && (
-                    <p className="text-sm text-red-600 mb-2">{cogsSaveError}</p>
-                  )}
-                  {cogsSaveMessage && (
-                    <p className="text-sm text-green-600 mb-2">
-                      {cogsSaveMessage}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // simple validation
-                      const missing = currentCosts.find(
-                        (c) => !c.label || !String(c.label).trim(),
-                      );
-                      if (missing) {
-                        setCogsSaveError("Nama biaya wajib diisi.");
-                        setCogsSaveMessage(null);
-                        return;
-                      }
-                      const invalid = currentCosts.find(
-                        (c) => isNaN(Number(c.amount)) || Number(c.amount) < 0,
-                      );
-                      if (invalid) {
-                        setCogsSaveError(
-                          "Semua jumlah harus berupa angka >= 0.",
-                        );
-                        setCogsSaveMessage(null);
-                        return;
-                      }
-                      try {
-                        localStorage.setItem(
-                          "cogs_maker",
-                          JSON.stringify({
-                            mode: cogsMode,
-                            costs: currentCosts,
-                          }),
-                        );
-                        setCogsSaveMessage("HPP berhasil disimpan.");
-                        setCogsSaveError(null);
-                      } catch (e) {
-                        setCogsSaveError("Gagal menyimpan HPP.");
-                        setCogsSaveMessage(null);
-                      }
-                    }}
-                    className="w-full px-3 py-2 rounded-lg bg-primary text-white font-medium"
-                  >
-                    Simpan HPP
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-3">
-                  Tip: Gunakan mode yang sesuai. Tambahkan semua biaya langsung
-                  terkait produksi atau pengadaan untuk hasil HPP yang akurat.
-                </p>
               </div>
             </div>
           </section>
