@@ -71,7 +71,7 @@ export default function ClaudeChatBubble() {
       const payload = {
         model: "claude-3-5-sonnet-20241022",
         max_tokens: 1024,
-        system: `Kamu adalah AI Assistant untuk aplikasi bernama 'Catalys', sebuah platform manajemen keuangan dan operasional untuk UMKM. Selalu jawab menggunakan bahasa indonesia tanpa menggunakan emoji atau karakter untuk menebalkan, memiringkan atau mengubah warna teks. 
+        system: `Kamu adalah AI Assistant untuk aplikasi bernama 'Ledgeris', sebuah platform manajemen keuangan dan operasional untuk UMKM. Selalu jawab menggunakan bahasa indonesia tanpa menggunakan emoji atau karakter untuk menebalkan, memiringkan atau mengubah warna teks. 
         
 BERIKUT ADALAH PENGETAHUAN TENTANG WEBSITE INI YANG HARUS KAMU TAHU:
 1. Halaman Dashboard: Menampilkan ringkasan total pemasukan, pengeluaran, dan profit.

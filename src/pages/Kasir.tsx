@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Plus, Minus, Trash2, ShoppingCart, X } from "lucide-react";
 import { useInventory } from "../context/InventoryContext";
 import { useJournal } from "../context/JournalContext";
@@ -10,6 +10,16 @@ interface CartItem {
   category: string;
   image: string;
   quantity: number;
+}
+
+interface Order {
+  id: string;
+  items: CartItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  status: "incoming" | "completed";
+  createdAt: string;
 }
 
 export default function Kasir() {
@@ -109,6 +119,32 @@ export default function Kasir() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { addSaleFromCart } = useJournal();
 
+  // Orders panel state: incoming orders (set when payment is confirmed) and completed
+  const [orders, setOrders] = useState<Order[]>(() => {
+    try {
+      const raw = localStorage.getItem("kasir_orders");
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [isOrdersPanelOpen, setIsOrdersPanelOpen] = useState(false);
+  const [ordersTab, setOrdersTab] = useState<"incoming" | "completed">(
+    "incoming",
+  );
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("kasir_orders", JSON.stringify(orders));
+    } catch (e) {
+      // ignore
+    }
+  }, [orders]);
+
+  const incomingCount = orders.filter((o) => o.status === "incoming").length;
+  const completedCount = orders.filter((o) => o.status === "completed").length;
+  const displayedOrders = orders.filter((o) => o.status === ordersTab);
+
   // Use the shipped QR image from public/ (qris.jpeg)
   const qrDataUrl = "/qris.jpeg";
 
@@ -188,8 +224,129 @@ export default function Kasir() {
     }, 300);
   };
 
+  const createOrderFromCart = (cartItems: CartItem[]): Order => {
+    const orderSubtotal = cartItems.reduce(
+      (s, it) => s + it.price * it.quantity,
+      0,
+    );
+    const orderTax = orderSubtotal * 0.11;
+    const orderTotal = orderSubtotal + orderTax;
+    return {
+      id: `ORD-${Date.now()}`,
+      items: cartItems.map((c) => ({ ...c })),
+      subtotal: orderSubtotal,
+      tax: orderTax,
+      total: orderTotal,
+      status: "incoming",
+      createdAt: new Date().toISOString(),
+    };
+  };
+
+  const markOrderCompleted = (orderId: string) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: "completed" } : o)),
+    );
+  };
+
+  const printOrder = (order: Order) => {
+    const rows = order.items
+      .map(
+        (it) =>
+          `<tr>
+            <td style="padding:6px 8px">${it.name}</td>
+            <td style="padding:6px 8px" align="right">${it.quantity} x</td>
+            <td style="padding:6px 8px" align="right">${new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(it.price)}</td>
+            <td style="padding:6px 8px" align="right">${new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(it.price * it.quantity)}</td>
+          </tr>`,
+      )
+      .join("");
+
+    const subtotalHtml = new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(order.subtotal);
+    const taxHtml = new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(order.tax);
+    const totalHtml = new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(order.total);
+
+    const html = `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Struk Pembayaran</title>
+          <style>
+            body { font-family: Arial, Helvetica, sans-serif; padding: 20px; color: #111 }
+            .logo { text-align:center; margin-bottom:8px }
+            table { width:100%; border-collapse: collapse; margin-top:8px }
+            td { border-bottom: 1px solid #eee }
+            .totals td { border: none; }
+          </style>
+        </head>
+        <body>
+          <div class="logo">
+            <h2>Struk Pembayaran</h2>
+            <div style="font-size:12px;color:#666">${new Date(order.createdAt).toLocaleString("id-ID")}</div>
+          </div>
+          <table>
+            ${rows}
+          </table>
+          <table style="margin-top:12px" class="totals">
+            <tr><td>Subtotal</td><td style="text-align:right">${subtotalHtml}</td></tr>
+            <tr><td>PPN (11%)</td><td style="text-align:right">${taxHtml}</td></tr>
+            <tr><td style="font-weight:700">Total</td><td style="text-align:right;font-weight:700">${totalHtml}</td></tr>
+          </table>
+          <div style="margin-top:18px;font-size:12px;color:#666;text-align:center">Terima kasih telah berbelanja</div>
+        </body>
+      </html>
+    `;
+
+    const w = window.open("", "_blank", "width=400,height=600");
+    if (!w) {
+      alert("Perbolehkan popup untuk mencetak struk.");
+      return;
+    }
+    w.document.write(html);
+    w.document.close();
+    setTimeout(() => {
+      w.focus();
+      w.print();
+    }, 300);
+  };
+
   return (
     <>
+      {/* Orders navigator (below navbar) */}
+      <div className="bg-white border-b p-2 shadow-sm z-20">
+        <div className="max-w-7xl mx-auto px-4 flex items-center gap-2">
+          <button
+            onClick={() => {
+              setIsOrdersPanelOpen(true);
+              setOrdersTab("incoming");
+            }}
+            className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 hover:bg-gray-200"
+          >
+            Pesanan Masuk ({incomingCount})
+          </button>
+          <button
+            onClick={() => {
+              setIsOrdersPanelOpen(true);
+              setOrdersTab("completed");
+            }}
+            className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 hover:bg-gray-200"
+          >
+            Sudah Selesai ({completedCount})
+          </button>
+        </div>
+      </div>
+
       <div className="flex flex-col md:flex-row h-[calc(100vh-theme(spacing.16))] bg-gray-50 overflow-hidden -m-4">
         {/* Left Area: Products */}
         <div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -210,22 +367,6 @@ export default function Kasir() {
                   className="w-full pl-10 pr-4 py-2 border rounded-full focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
               </div>
-            </div>
-
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                    activeCategory === cat
-                      ? "bg-primary text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
             </div>
           </div>
 
@@ -535,16 +676,20 @@ export default function Kasir() {
               <button
                 className="flex-1 px-4 py-2 rounded-lg bg-primary text-white font-semibold"
                 onClick={() => {
-                  // finalize payment: record sale in journals, then clear cart
+                  // finalize payment: record sale in journals, then add to orders and clear cart
                   try {
                     addSaleFromCart(cart, {
                       description: "Penjualan via Kasir",
                     });
                   } catch (e) {
-                    // ignore errors but log
-
                     console.error(e);
                   }
+
+                  if (cart.length > 0) {
+                    const order = createOrderFromCart(cart);
+                    setOrders((prev) => [order, ...prev]);
+                  }
+
                   clearCart();
                   setIsPaymentOpen(false);
                 }}
@@ -563,6 +708,95 @@ export default function Kasir() {
               >
                 Tutup
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isOrdersPanelOpen && (
+        <div className="fixed inset-0 z-[80]">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setIsOrdersPanelOpen(false)}
+          />
+          <div className="absolute right-0 top-0 h-full w-full max-w-lg bg-white shadow-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setOrdersTab("incoming")}
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${ordersTab === "incoming" ? "bg-primary text-white" : "bg-gray-100"}`}
+                >
+                  Masuk ({incomingCount})
+                </button>
+                <button
+                  onClick={() => setOrdersTab("completed")}
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${ordersTab === "completed" ? "bg-primary text-white" : "bg-gray-100"}`}
+                >
+                  Selesai ({completedCount})
+                </button>
+              </div>
+              <button
+                onClick={() => setIsOrdersPanelOpen(false)}
+                className="p-2 rounded-md"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3">
+              {displayedOrders.length === 0 ? (
+                <div className="flex items-center justify-center h-40 text-gray-500">
+                  Tidak ada pesanan
+                </div>
+              ) : (
+                displayedOrders.map((order) => (
+                  <div key={order.id} className="p-3 border rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-semibold">
+                        Pesanan {order.id}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {new Date(order.createdAt).toLocaleString("id-ID")}
+                      </div>
+                    </div>
+
+                    <div className="mt-2 text-sm text-gray-700 space-y-1">
+                      {order.items.map((it) => (
+                        <div key={it.id} className="flex justify-between">
+                          <div>
+                            {it.quantity} x {it.name}
+                          </div>
+                          <div>{formatRupiah(it.price * it.quantity)}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="text-sm font-semibold">Total</div>
+                      <div className="text-sm font-bold">
+                        {formatRupiah(order.total)}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex gap-2">
+                      {order.status === "incoming" && (
+                        <button
+                          onClick={() => markOrderCompleted(order.id)}
+                          className="px-3 py-1 rounded-lg bg-primary text-white text-sm"
+                        >
+                          Selesai
+                        </button>
+                      )}
+                      <button
+                        onClick={() => printOrder(order)}
+                        className="px-3 py-1 rounded-lg border text-sm"
+                      >
+                        Cetak
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

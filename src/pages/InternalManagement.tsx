@@ -238,8 +238,8 @@ type InventoryItem = {
   unit: string;
   unitCost: number;
   sellingPrice: number;
-  image: string;
-  supplier: string;
+  image?: string;
+  supplier?: string;
 };
 
 type CostLine = { id: string; label: string; amount: number };
@@ -544,6 +544,16 @@ export default function InternalManagement() {
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareItem, setShareItem] = useState<InventoryItem | null>(null);
+  const [shareCaption, setShareCaption] = useState<string>("");
+  const [selectedTargets, setSelectedTargets] = useState<{
+    twitter: boolean;
+    facebook: boolean;
+    whatsapp: boolean;
+  }>({ twitter: false, facebook: false, whatsapp: false });
+  const [isPosting, setIsPosting] = useState(false);
+  const [postResult, setPostResult] = useState<string | null>(null);
   const { sector } = useBusinessSector();
   const sectorData = (MOCKS as any)[sector] || (MOCKS as any)["kuliner"];
 
@@ -646,7 +656,7 @@ export default function InternalManagement() {
     if (!inventoryForm.name.trim() || inventoryForm.qty <= 0) return;
     const payload = {
       ...inventoryForm,
-      image: inventoryForm.image.trim() || "https://via.placeholder.com/150",
+      image: inventoryForm.image?.trim() || "https://via.placeholder.com/150",
       supplier:
         inventoryForm.supplier || suppliers[0]?.name || "Belum ditentukan",
     };
@@ -1265,6 +1275,25 @@ export default function InternalManagement() {
                         type="button"
                         className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors font-medium"
                         onClick={() => {
+                          setShareItem(item);
+                          setShareCaption(
+                            `Es Teh Segar - Promo Spesial! Nikmati kesegaran Es Teh kami. Pesan sekarang dan dapatkan diskon menarik untuk pembelian hari ini.`,
+                          );
+                          setSelectedTargets({
+                            twitter: false,
+                            facebook: false,
+                            whatsapp: false,
+                          });
+                          setPostResult(null);
+                          setIsShareModalOpen(true);
+                        }}
+                      >
+                        Share
+                      </button>
+                      <button
+                        type="button"
+                        className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors font-medium"
+                        onClick={() => {
                           setEditingInventoryId(item.id);
                           setInventoryForm({
                             name: item.name,
@@ -1532,6 +1561,176 @@ export default function InternalManagement() {
               {editingInventoryId ? "Save Changes" : "Add Item"}
             </button>
           </div>
+        </div>
+      </Modal>
+      {/* Share Preview Modal */}
+      <Modal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        title="Share Preview"
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl overflow-hidden border bg-white">
+            <img
+              src={shareItem?.image || "https://via.placeholder.com/600x400"}
+              alt={shareItem?.name || "Preview"}
+              className="w-full h-64 object-cover"
+            />
+            <div className="p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center font-semibold text-sm">
+                  T
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm text-gray-900 truncate">
+                    {shareItem?.name || "Product Name"}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    @your_store · {new Date().toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+
+              <textarea
+                value={shareCaption}
+                onChange={(e) => setShareCaption(e.target.value)}
+                rows={4}
+                className="w-full border border-gray-200 rounded-md p-2 text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                aria-pressed={selectedTargets.twitter}
+                onClick={() =>
+                  setSelectedTargets((s) => ({ ...s, twitter: !s.twitter }))
+                }
+                className={`px-3 py-2 rounded-lg border ${
+                  selectedTargets.twitter ? "bg-primary text-white" : "bg-white"
+                }`}
+                title="Share to Twitter"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  className="w-4 h-4"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M23 3a10.9 10.9 0 01-3.14 1.53A4.48 4.48 0 0012 7v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5A4.5 4.5 0 0023 3z"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
+                aria-pressed={selectedTargets.facebook}
+                onClick={() =>
+                  setSelectedTargets((s) => ({ ...s, facebook: !s.facebook }))
+                }
+                className={`px-3 py-2 rounded-lg border ${
+                  selectedTargets.facebook
+                    ? "bg-primary text-white"
+                    : "bg-white"
+                }`}
+                title="Share to Facebook"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  className="w-4 h-4"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
+                aria-pressed={selectedTargets.whatsapp}
+                onClick={() =>
+                  setSelectedTargets((s) => ({ ...s, whatsapp: !s.whatsapp }))
+                }
+                className={`px-3 py-2 rounded-lg border ${
+                  selectedTargets.whatsapp
+                    ? "bg-primary text-white"
+                    : "bg-white"
+                }`}
+                title="Share to WhatsApp"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  className="w-4 h-4"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 15a4 4 0 01-3 3.87A11.9 11.9 0 0112 21c-6.08 0-11-4.92-11-11 0-6.07 4.92-11 11-11s11 4.93 11 11v1a4 4 0 01-2 3z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 11.37c-.29-.15-1.71-.84-1.98-.93-.27-.09-.47-.15-.68.15s-.78.93-.96 1.12c-.17.2-.33.22-.62.07-.29-.15-1.22-.45-2.33-1.44-.86-.77-1.44-1.72-1.61-2.01-.17-.29-.02-.45.13-.6.13-.13.29-.34.44-.51.15-.17.2-.29.29-.48.09-.19.04-.36-.02-.5-.06-.15-.68-1.62-.93-2.22-.24-.58-.49-.5-.68-.51l-.58-.01c-.19 0-.5.07-.76.36-.27.29-1.02 1-1.02 2.44 0 1.44 1.04 2.83 1.19 3.03.15.19 2.06 3.26 5 4.56 2.21 1 3.13 1.04 3.39 1.02.27-.02 1.71-.7 1.95-1.38.24-.68.24-1.26.17-1.38-.07-.11-.27-.17-.56-.32z"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  // simulate posting
+                  if (!shareItem) return;
+                  setIsPosting(true);
+                  setPostResult(null);
+                  setTimeout(() => {
+                    const platforms = ["Instagram"];
+                    if (selectedTargets.twitter) platforms.push("Twitter");
+                    if (selectedTargets.facebook) platforms.push("Facebook");
+                    if (selectedTargets.whatsapp) platforms.push("WhatsApp");
+                    setPostResult(`Posted to ${platforms.join(", ")}`);
+                    setIsPosting(false);
+                  }, 900);
+                }}
+                disabled={isPosting}
+                className="px-4 py-2 rounded-lg bg-primary text-white font-medium disabled:opacity-60"
+              >
+                {isPosting ? "Posting..." : "Post"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsShareModalOpen(false)}
+                className="px-4 py-2 rounded-lg border"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+
+          {postResult && <p className="text-sm text-green-600">{postResult}</p>}
         </div>
       </Modal>
 

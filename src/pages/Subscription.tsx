@@ -57,11 +57,12 @@ export default function Subscription() {
               <p className="font-medium">Unlocked Features</p>
               <ul className="list-disc ml-5 mt-2 text-gray-700 space-y-1">
                 <li>UMKM berkembang</li>
-                <li>Pelaporan Keuangan (Non-Automatisasi)</li>
-                <li>Financial Reporting (Non-Automatisasi)</li>
+                <li>Pelaporan Keuangan (Automatisasi)</li>
+                <li>Financial Reporting (Automatisasi)</li>
                 <li>Permodalan</li>
                 <li>Konsultasi 1x sebulan</li>
                 <li>Smart Engine Pricing</li>
+                <li>Scan struk 400x seminggu</li>
               </ul>
             </div>
 
@@ -98,6 +99,7 @@ export default function Subscription() {
                 <li>Audit Intelligence</li>
                 <li>Management Internal</li>
                 <li>Konsultasi 3x sebulan</li>
+                <li>Scan struk 1000x seminggu</li>
               </ul>
             </div>
 

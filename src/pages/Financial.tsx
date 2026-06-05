@@ -894,59 +894,16 @@ export default function Financial() {
     setIsAnalyzing(true);
     setAnalysisError(null);
     try {
-      const base64Data = photoDataUrl.split(",")[1];
-      const response = await anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1024,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: "image/jpeg",
-                  data: base64Data,
-                },
-              },
-              {
-                type: "text",
-                text: `Anda adalah asisten ekstraksi data yang sangat akurat. Tugas Anda adalah mengekstrak teks HANYA dari barang yang benar-benar tercetak di gambar struk ini.
-ATURAN SANGAT KETAT:
-1. HANYA ekstrak nama barang dan harga yang TERLIHAT JELAS di gambar.
-2. DILARANG KERAS menebak (hallucinate), mengarang, atau menambahkan barang yang tidak ada di struk.
-3. Jika gambar buram atau teks tidak terbaca, LEWATI barang tersebut atau kembalikan array kosong {"items": []}.
-4. JANGAN PERNAH mengembalikan data contoh di bawah ini.
-
-Format output (hanya kembalikan JSON murni, tanpa teks lain):
-{"items": [{"name": "contoh nama produk asli di struk", "price": 50000}]}`,
-              },
-            ],
-          },
+      // Temporary: insert dummy scanned items for testing since OCR isn't working yet
+      const dummy = {
+        items: [
+          { name: "Meja", price: 10000000 },
+          { name: "Kursi", price: 5000000 },
+          { name: "Piring", price: 1500000 },
+          { name: "Sendok", price: 500000 },
         ],
-      });
-
-      const textBlock = response.content.find((c) => c.type === "text");
-      let text = textBlock && textBlock.type === "text" ? textBlock.text : "{}";
-
-      // Clean up potential markdown formatting
-      text = text
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-
-      // Extract just the JSON object
-      const firstBrace = text.indexOf("{");
-      const lastBrace = text.lastIndexOf("}");
-      if (firstBrace !== -1 && lastBrace !== -1) {
-        text = text.slice(firstBrace, lastBrace + 1);
-      } else {
-        text = '{"items": []}';
-      }
-
-      const parsed = JSON.parse(text);
-      setScannedData(parsed);
+      };
+      setScannedData(dummy);
       setShowCameraModal(false);
       stopCamera();
       setShowDataModal(true);
