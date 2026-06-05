@@ -26,10 +26,7 @@ export default function Kasir() {
   const { products, decrementStock, getById } = useInventory();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("Semua");
-
-  const categories = Array.from(new Set(products.map((p) => p.category)));
-  const CATEGORIES = ["Semua", ...categories];
+  const [activeCategory] = useState("Semua");
 
   const filteredProducts = products.filter((p) => {
     const matchCategory =

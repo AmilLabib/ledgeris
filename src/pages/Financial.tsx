@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import Anthropic from "@anthropic-ai/sdk";
 import {
   PieChart,
   Pie,
@@ -470,19 +469,7 @@ function formatRpCompact(value: number) {
 
 import { usePageTitle } from "../hooks/usePageTitle";
 
-const getBaseUrl = () => {
-  const origin =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : "http://localhost:5173";
-  return `${origin}/anthropic`;
-};
-
-const anthropic = new Anthropic({
-  apiKey: import.meta.env.VITE_CLAUDE_API_KEY || "API_KEY_ANDA",
-  baseURL: getBaseUrl(),
-  dangerouslyAllowBrowser: true,
-});
+// NOTE: anthropic SDK temporarily removed from runtime while OCR stub is used
 
 export default function Financial() {
   usePageTitle("Financial");
@@ -543,7 +530,7 @@ export default function Financial() {
 
   useEffect(() => {
     const c = checkConsistency();
-     
+
     console.log("Financials consistency:", c);
   }, []);
 
@@ -865,7 +852,6 @@ export default function Financial() {
     return () => {
       stopCamera();
     };
-     
   }, []);
 
   const openCameraModal = (type: "penjualan" | "pembelian") => {
