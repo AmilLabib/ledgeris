@@ -11,7 +11,7 @@ export default function ClaudeChatBubble() {
   const [chatHistory, setChatHistory] = useState([
     {
       role: "assistant",
-      content: "Halo! Saya ledgeris bot. Ada yang bisa saya bantu hari ini?",
+      content: "Halo! Saya arthami bot. Ada yang bisa saya bantu hari ini?",
     },
   ]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -71,7 +71,7 @@ export default function ClaudeChatBubble() {
       const payload = {
         model: "claude-3-5-sonnet-20241022",
         max_tokens: 1024,
-        system: `Kamu adalah AI Assistant untuk aplikasi bernama 'Ledgeris', sebuah platform manajemen keuangan dan operasional untuk UMKM. Selalu jawab menggunakan bahasa indonesia tanpa menggunakan emoji atau karakter untuk menebalkan, memiringkan atau mengubah warna teks. 
+        system: `Kamu adalah AI Assistant untuk aplikasi bernama 'Arthami', sebuah platform manajemen keuangan dan operasional untuk UMKM. Selalu jawab menggunakan bahasa indonesia tanpa menggunakan emoji atau karakter untuk menebalkan, memiringkan atau mengubah warna teks. 
         
 BERIKUT ADALAH PENGETAHUAN TENTANG WEBSITE INI YANG HARUS KAMU TAHU:
 1. Halaman Dashboard: Menampilkan ringkasan total pemasukan, pengeluaran, dan profit.
@@ -157,7 +157,7 @@ Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau memi
                 Bingung memakai aplikasi ini?
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Yuk, tanya ledgeris bot!
+                Yuk, tanya arthami bot!
               </p>
             </div>
             <button
@@ -185,7 +185,7 @@ Jika user bertanya "ini halaman apa?" atau "bagaimana cara pakainya?", atau memi
                 <MessageCircle size={18} />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">ledgeris bot</h3>
+                <h3 className="font-semibold text-sm">arthami bot</h3>
                 <p className="text-xs text-white/80">Powered by Claude</p>
               </div>
             </div>

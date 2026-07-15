@@ -159,7 +159,7 @@ export default function TourGuide() {
             </div>
           </div>
           <h3 className="text-xl font-bold mb-2 text-center">
-            Selamat Datang di Ledgeris
+            Selamat Datang di Arthami
           </h3>
           <p className="text-gray-600 mb-4 text-center text-sm">
             Ikuti tutorial untuk mempelajari aplikasi ini.
